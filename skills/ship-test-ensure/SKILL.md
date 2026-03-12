@@ -216,11 +216,20 @@ Identify the runs triggered by the push (match by `headBranch: main` and recent 
 
 ### Step 2.2: Monitor Runs Until Completion
 
-For each relevant run, poll every 30 seconds:
+For each relevant run, poll every 30 seconds with a **15-minute timeout**:
 
 ```bash
 gh run view [RUN_ID] --repo {github_repo} --json jobs --jq '.jobs[] | {name, status, conclusion}'
 ```
+
+Track elapsed time from first poll. If a workflow has not completed after **15 minutes**:
+
+1. Get current job statuses: `gh run view [RUN_ID] --repo {github_repo} --json jobs`
+2. Report to user: "Staging deploy has been running for 15+ minutes. [Job X] is still [status]. This may indicate a hung workflow or infrastructure issue."
+3. Present options via `AskUserQuestion`:
+   - **Wait 10 more minutes** — extend timeout once (25 min total max)
+   - **Cancel and retry** — `gh run cancel [RUN_ID]` then re-push
+   - **Investigate** — stop pipeline, user checks CI manually
 
 Report progress to the user as steps complete:
 
@@ -314,7 +323,7 @@ Only trigger the app(s) the user approved.
 
 ### Step 4.3: Follow Production Deploy
 
-Same monitoring pattern as Phase 2 — poll every 30 seconds until completion using `gh run view` against `{github_repo}`.
+Same monitoring pattern as Phase 2 — poll every 30 seconds with the same **15-minute timeout** and escalation protocol. Production deploys warrant extra caution: if timeout triggers, recommend **"Investigate"** as the default option rather than "Cancel and retry".
 
 ### Step 4.4: Handle Production Deploy Failures
 

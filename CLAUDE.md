@@ -126,7 +126,7 @@ Sprint execution is delegated to the `sprint-executor` agent (`~/.claude/agents/
 
 ### The Full Pipeline
 
-Three skills form the end-to-end workflow:
+Four skills form the end-to-end workflow:
 
 ```
 [/plan] — PRD generation only. Use when you ONLY want to plan without executing.
@@ -136,6 +136,30 @@ Three skills form the end-to-end workflow:
 ```
 
 `/plan-build-test` can plan on its own — `/plan` is optional for when you want a PRD without execution.
+
+### Skill Selection Decision Tree
+
+```
+"What do I need to do?"
+│
+├─ "Just plan, don't build yet"
+│   └─ /plan
+│
+├─ "Build a feature / fix a bug / implement something"
+│   ├─ Single file, < 30 lines, obvious fix?
+│   │   └─ Quick Fix (no skill needed — just do it)
+│   └─ Anything larger
+│       └─ /plan-build-test (plans if needed, then executes)
+│
+├─ "Ship what I've built to production"
+│   └─ /ship-test-ensure (commit → staging → E2E → prod → Lighthouse)
+│
+├─ "Wrap up / capture what I learned"
+│   └─ /compound (auto-invoked after task completion, not after "ship it")
+│
+└─ "I have pending task files from a previous session"
+    └─ /plan-build-test (Phase 0 detects and resumes pending work)
+```
 
 **Project-specific commands** (build, test, lint, deploy, URLs, pages to audit) live in each project's CLAUDE.md under `## Execution Config`. Skills read from there — never hardcode project details.
 

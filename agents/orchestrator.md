@@ -78,9 +78,46 @@ When sprints are independent (no dependency between them):
 
 1. Identify independent sprints from the PRD dependency graph
 2. Spawn sprint-executor agents simultaneously (each with `isolation: "worktree"`)
-3. After all complete: merge worktree branches sequentially
-4. If merge conflicts: resolve them (you have Write/Edit tools for this)
-5. Run full test suite after all merges
+3. After all complete: merge worktree branches using the Merge Protocol below
+4. Run full test suite after all merges
+
+### Merge Protocol
+
+**Merge order priority:** Merge branches in sprint number order (lowest first). This ensures earlier sprints form the base for later ones, matching the PRD's dependency ordering even when sprints ran in parallel.
+
+**For each branch:**
+
+```bash
+git merge --no-ff <worktree-branch> -m "merge: Sprint N — <title>"
+```
+
+**If merge conflicts occur:**
+
+1. Assess conflict scope: count conflicting files and lines
+2. **≤ 3 files conflicted:** Resolve directly using Write/Edit tools. Prefer the later sprint's version for new code; preserve both sides for modifications to existing code.
+3. **> 3 files conflicted:** Spawn an opus agent with conflict context:
+   ```
+   Agent(description: "Resolve Sprint N merge conflicts",
+         prompt: "[list of conflicting files + both sprint specs + intent of each change]",
+         model: "opus")
+   ```
+4. After resolution: `git add <resolved-files> && git commit --no-edit`
+
+**If build/tests fail after a merge:**
+
+1. Identify which merge introduced the failure (bisect by sprint order)
+2. Spawn a sonnet agent to fix the integration issue:
+   ```
+   Agent(description: "Fix Sprint N integration",
+         prompt: "[failing test/build output + both sprint specs + files modified by each]",
+         model: "sonnet")
+   ```
+3. Commit the fix: `fix: resolve Sprint N/M integration issue`
+4. Re-run full test suite before proceeding to next merge
+5. **Max 2 fix attempts per merge.** If still failing after 2 attempts, report to user:
+   "Merge of Sprint [N] causes [build/test] failure after 2 fix attempts. Manual intervention recommended."
+
+**Rollback:** If a merge is irrecoverable, `git merge --abort` (or `git reset --hard` to pre-merge commit) and mark the sprint as `[!] Blocked — merge conflict` in the PRD. Continue merging remaining sprints. Report blocked sprints in the completion report.
 
 ## Context Health
 
