@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Classify the conversation: (A) Implementation task — code was written or edited to fulfill specific acceptance criteria (look for Write/Edit tool calls that changed source code, not just config or docs). (B) Everything else — discussion, planning, Q&A, audit, review, config changes, documentation edits, workflow fixes, CLAUDE.md/settings.json edits. If B: respond {\"decision\": \"allow\"}. If A: check — all AC met? Tests run? Anti-Goodhart passed (tests validate behavior, not just output)? If incomplete, respond {\"decision\": \"block\", \"reason\": \"Incomplete: [what's missing]\"}. If all done, respond {\"decision\": \"allow\"}.",
+            "prompt": "You MUST respond with ONLY a JSON object — no explanation, no markdown, no text before or after. Classify the conversation: (A) Implementation task — code was written or edited to fulfill specific acceptance criteria (look for Write/Edit tool calls that changed source code, not just config or docs). (B) Everything else — discussion, planning, Q&A, audit, review, config changes, documentation edits, workflow fixes, CLAUDE.md/settings.json edits. If B: respond exactly {\"decision\": \"allow\"} and nothing else. If A: check — all AC met? Tests run? Anti-Goodhart passed (tests validate behavior, not just output)? If incomplete, respond exactly {\"decision\": \"block\", \"reason\": \"Incomplete: [what's missing]\"} and nothing else. If all done, respond exactly {\"decision\": \"allow\"} and nothing else. CRITICAL: Your entire response must be valid JSON. No other text.",
             "timeout": 30
           }
         ]
