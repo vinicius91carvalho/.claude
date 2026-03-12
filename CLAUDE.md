@@ -117,6 +117,30 @@ Large PRDs decompose into Sprints — self-contained units for one agent in a he
 
 Sprint execution is delegated to the `sprint-executor` agent (`~/.claude/agents/sprint-executor.md`). The orchestrator manages lifecycle and coherence.
 
+### The Full Pipeline: Plan → Build+Test → Ship+Verify → Compound
+
+These four skills form a complete end-to-end workflow. Each is auto-invoked or manually triggered:
+
+```
+User describes task
+      │
+      ▼
+[/plan] — Classify mode, Contract-First, PRD, Sprint decomposition
+      │
+      ▼ (user says "build it" / "execute")
+[/plan-build-test] — Discover tasks, batch plan, parallel worktree execution, local verification
+      │
+      ▼ (user manually tests, says "ship it")
+[/ship-test-ensure] — Commit, push, staging deploy, staging E2E, production deploy, Lighthouse 100/100
+      │
+      ▼ (auto-invokes on completion)
+[/compound] — Learning capture, knowledge promotion, session-learnings update
+```
+
+**Project-specific commands** (build, test, lint, deploy, URLs, pages to audit) live in each project's CLAUDE.md under `## Execution Config`. Skills read from there — never hardcode project details.
+
+**Fresh context principle:** Each major skill works best in a fresh context window. The plan saves state to session-learnings; the next skill reads it. This prevents context pollution across phases.
+
 ### Knowledge Promotion Chain
 
 session-learnings (ephemeral) → `docs/solutions/` (project knowledge) → ADRs (architectural decisions) → CLAUDE.md updates (workflow improvements). Promote when a pattern proves useful across 2+ tasks.
