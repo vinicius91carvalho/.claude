@@ -60,14 +60,17 @@ The recommended split: **Plan + Review = 80%** of effort, **Work + Compound = 20
 
 This sounds counterintuitive — why spend more time planning and reviewing than coding? Because with AI agents, the bottleneck is not typing speed. The bottleneck is knowing **what** to build and **verifying** it was built correctly. If you plan well and review well, implementation becomes almost mechanical — perfect for delegating to an AI agent.
 
-## Intellectual Origins
+## Influences & References
 
-This system draws from:
+This system is primarily shaped by hands-on experience building production software with AI agents, combined with ideas from:
 
-- **The AI-Human Engineering Stack** (Mill & Sanchez, 2026) — a layered model for AI engineering where each layer (Prompt, Context, Intent, Judgment, Coherence) has a distinct role
-- **The Complete Guide to Specifying Work for AI** (Mill & Sanchez, 2026) — practical methods for translating human intent into AI-readable specifications
+- **[Compound Engineering](https://every.to/source-code/compound-engineering-the-definitive-guide)** — The methodology developed by [Every, Inc.](https://every.to/guides/compound-engineering) where each unit of work improves the system for the next. The Plan → Work → Review → Compound loop and the 80/20 split come from here. See also the [official Claude Code plugin](https://github.com/EveryInc/compound-engineering-plugin).
+- **[Context Engineering](https://x.com/karpathy/status/1937902205765607626)** — The discipline of structuring everything an LLM needs to make reliable decisions, as articulated by [Andrej Karpathy](https://x.com/karpathy/status/1937902205765607626) and [Tobi Lütke](https://x.com/tobi/status/1935533422589399127). The agent architecture, worktree isolation, context budget rules, and context rot protocols are context engineering in practice.
+- **The AI-Human Engineering Stack** (Mill & Sanchez, 2026) — A layered model (Prompt, Context, Intent, Judgment, Coherence) that informed the value hierarchy, judgment protocols, and evaluation framework.
+- **The Complete Guide to Specifying Work for AI** (Mill & Sanchez, 2026) — Practical methods for translating human intent into AI-readable specifications that shaped the Contract-First pattern, Correctness Discovery, and PRD templates.
+- **Personal experience** — Patterns, anti-patterns, hooks, and safety rules discovered through months of real-world AI-assisted development across multiple production projects.
 
-The repository implements these concepts in practice, turning theory into a working system with real files, hooks, and agents.
+The repository turns these concepts into a working system with real files, hooks, and agents.
 
 ---
 
