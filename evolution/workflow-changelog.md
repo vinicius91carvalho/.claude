@@ -2,6 +2,23 @@
 
 Track every change to CLAUDE.md, skills, agents, and hooks with date, what changed, why, and source.
 
+## 2026-03-14 — SimUser AI Refinement Build Learnings
+
+### Changes
+- **Added:** `~/.claude/projects/-root-projects-simuser-ai/memory/feedback_worktree_merge.md` — worktree merge pattern causes silent overwrite of previous sprint changes in shared files
+- **Updated:** `error-registry.json` — 3 new entries (worktree merge overwrite, large JSON context overflow, PRoot serve failure)
+- **Updated:** `model-performance.json` — first real data points: sonnet 1/1 implementation, 0/1 orchestration; opus 2/3 complex_refactoring
+
+### Why
+- Worktree merge overwrite happened 3 times in one session — must be documented to prevent in future builds
+- Large JSON i18n files (500+ lines) consistently caused agent context overflow — pattern needs recognition
+- Model performance data now has real numbers for adaptation threshold checks
+
+### Source
+- /compound after simuser-ai website refinement build (5 sprints), 2026-03-14
+
+---
+
 ## 2026-03-14 — Maturity & Robustness Audit (v4)
 
 ### Changes
