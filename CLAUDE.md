@@ -62,7 +62,7 @@ Switch modes 2-3 times within a single task. Typical pattern: start in PRD+Sprin
 #### Quick Fix
 
 **When:** Single-file, < 30 lines, no architectural impact, clear fix.
-**Process:** Fix directly, run tests, update session-learnings if surprising. No PRD.
+**Process:** Fix directly, run tests, run micro-compound (1 question: "Would the system catch this next time?"). No PRD.
 **Spec:** Intent Doc (4 lines): Task, Scope, Boundaries, If Uncertain.
 
 #### Standard
@@ -76,6 +76,46 @@ Switch modes 2-3 times within a single task. Typical pattern: start in PRD+Sprin
 **Process:** Contract-First, Correctness Discovery, Full PRD, Sprint decomposition, compound.
 
 In autonomous mode: execute sprints sequentially, still ask on escalation criteria, pause between sprints to update PRD and evaluate context health.
+
+### Autonomous Pipeline
+
+The preferred end-to-end workflow is a hybrid autonomous pipeline that minimizes human
+touchpoints while keeping the single highest-value safety gate (production deploy confirmation).
+
+**The flow:**
+
+```
+/plan → User reviews PRDs → Approves → /plan-build-test (autonomous) → User tests manually → /ship-test-ensure (autonomous through staging, confirms before prod)
+```
+
+**Design goal:** The user reviews the plan once, approves once, tests manually once, and
+confirms production deploy once. Everything else runs without interruption. This is a
+permanent architectural decision — not a temporary workaround.
+
+**How each skill behaves in autonomous mode:**
+
+| Checkpoint | Default autonomous action | Rationale |
+|---|---|---|
+| `/plan-build-test` execution plan | Auto-select "Run all autonomously" | PRD was already reviewed |
+| `/plan-build-test` verification failures | Exhaust retry budget, then report BLOCKED | User checks at end |
+| `/ship-test-ensure` fresh context check | Auto-select "Continue here" | Advisory only |
+| `/ship-test-ensure` deploy timeout (15min) | Wait 10 more minutes, then report BLOCKED | Safe default |
+| `/ship-test-ensure` **production deploy** | **ALWAYS ask user** | Non-negotiable safety gate |
+| `/ship-test-ensure` Lighthouse plateau | Accept current scores after max iterations | Performance, not correctness |
+| `/ship-test-ensure` rollback decision | **ALWAYS ask user** | Destructive action needs human judgment |
+
+**Activation:** Autonomous mode is the default behavior for `/plan-build-test` and
+`/ship-test-ensure`. Skills detect it from the user's intent ("run it", "build this",
+"ship it") or from `## Execution Mode: Autonomous` in the session learnings file.
+No explicit flag is needed — autonomous is the norm, not the exception.
+
+**Safety invariants that autonomous mode does NOT change:**
+- Escalation Logic rules still apply (ambiguity, scope > 2x, etc.)
+- "Agent NEVER does" column still enforced by hooks
+- Production deploy requires user confirmation
+- Rollback decisions require user confirmation
+- Anti-Premature Completion Protocol still enforced
+- Verification Integrity rules still enforced
 
 ### Contract-First Pattern (mandatory for Standard and PRD+Sprint)
 
@@ -120,9 +160,13 @@ Large PRDs decompose into Sprints — self-contained units for one agent in a he
 2. Each Sprint SHOULD produce a working state (builds and passes tests)
 3. Ordered by dependency (N+1 may depend on N, never reverse)
 4. Target size: 30-90 minutes of agent work. Larger: decompose further
-5. Maximum 8 sprints per PRD. More needed: split the PRD
+5. Maximum 5 sprints per PRD. If >5 sprints needed, split by **independent deliverable** — the test: "could these be built by two teams who never talk?" If yes, split. If they share files, keep together.
+6. Each sprint is **extracted into its own spec file** during planning (not inline in the PRD)
+7. Sprint agents load ONLY their sprint spec file — never the full PRD
 
-Sprint execution is delegated to the `sprint-executor` agent (`~/.claude/agents/sprint-executor.md`). The orchestrator manages lifecycle and coherence.
+**Sprint File Structure:** `spec.md` + `progress.json` + `sprints/NN-title.md` per sprint. Each sprint spec declares **file boundaries** (`files_to_create`, `files_to_modify`, `files_read_only`, `shared_contracts`) to prevent parallel agents from conflicting. If two sprints need the same file, they MUST be sequential. Full structure and JSON schema in `~/.claude/skills/plan/SKILL.md`.
+
+**Orchestrator design:** Deterministic checklist — read progress.json → find next batch → spawn sprint-executors with ONLY their sprint spec → collect results → code review → merge → dev server verification → update progress.json → return. Minimal LLM judgment, maximum structure. Full protocol in `~/.claude/agents/orchestrator.md`.
 
 ### The Full Pipeline
 
@@ -130,12 +174,15 @@ Four skills form the end-to-end workflow:
 
 ```
 [/plan] — PRD generation only. Use when you ONLY want to plan without executing.
-[/plan-build-test] — Smart entry point: discovers pending tasks, plans if needed, executes, verifies locally.
-[/ship-test-ensure] — Deploy pipeline: commit, staging, E2E, production, Lighthouse 100/100.
-[/compound] — Post-task learning capture. Auto-runs after completion (not after "ship it").
+[/plan-build-test] — Smart entry point: discovers pending tasks, plans if needed, executes, verifies locally. Runs autonomously by default.
+[/ship-test-ensure] — CI/CD pipeline: commit, branch, PR, merge, staging E2E, production deploy, Lighthouse. Autonomous through staging; confirms before prod.
+[/compound] — Post-task learning capture + cross-project evolution. Auto-runs after completion.
+[/workflow-audit] — Periodic self-audit: reviews model performance, error patterns, rule staleness. Monthly or after 10+ sessions.
 ```
 
 `/plan-build-test` can plan on its own — `/plan` is optional for when you want a PRD without execution.
+
+**Autonomous Pipeline (preferred flow):** `/plan` → user reviews PRD → approves → `/plan-build-test` runs autonomously → user tests manually → `/ship-test-ensure` runs autonomously through staging, confirms before production deploy. See "Autonomous Pipeline" section above for full details.
 
 ### Skill Selection Decision Tree
 
@@ -149,16 +196,22 @@ Four skills form the end-to-end workflow:
 │   ├─ Single file, < 30 lines, obvious fix?
 │   │   └─ Quick Fix (no skill needed — just do it)
 │   └─ Anything larger
-│       └─ /plan-build-test (plans if needed, then executes)
+│       └─ /plan-build-test (autonomous — plans if needed, then executes without interruption)
 │
 ├─ "Ship what I've built to production"
-│   └─ /ship-test-ensure (commit → staging → E2E → prod → Lighthouse)
+│   └─ /ship-test-ensure (autonomous through staging → confirms before prod deploy)
+│
+├─ "Full autonomous pipeline (plan → build → test → ship)"
+│   └─ /plan → review PRD → /plan-build-test → manual test → /ship-test-ensure
 │
 ├─ "Wrap up / capture what I learned"
 │   └─ /compound (auto-invoked after task completion, not after "ship it")
 │
-└─ "I have pending task files from a previous session"
-    └─ /plan-build-test (Phase 0 detects and resumes pending work)
+├─ "I have pending task files from a previous session"
+│   └─ /plan-build-test (Phase 0 detects and resumes pending work)
+│
+└─ "Audit how the workflow itself is performing"
+    └─ /workflow-audit (model adaptation, error trends, rule staleness)
 ```
 
 **Project-specific commands** (build, test, lint, deploy, URLs, pages to audit) live in each project's CLAUDE.md under `## Execution Config`. Skills read from there — never hardcode project details.
@@ -167,7 +220,11 @@ Four skills form the end-to-end workflow:
 
 ### Knowledge Promotion Chain
 
-session-learnings (ephemeral) → `docs/solutions/` (project knowledge) → ADRs (architectural decisions) → CLAUDE.md updates (workflow improvements). Promote when a pattern proves useful across 2+ tasks.
+**Per-project:** session-learnings → `docs/solutions/` → ADRs → CLAUDE.md updates. Promote when a pattern proves useful across 2+ tasks.
+
+**Cross-project:** session-learnings → `~/.claude/evolution/error-registry.json` → `~/.claude/evolution/model-performance.json` → `~/.claude/projects/-root/memory/` → CLAUDE.md / skills / agents / hooks.
+
+Evolution data lives in `~/.claude/evolution/` (error-registry, model-performance, workflow-changelog, session-postmortems). `/compound` handles promotion after every task. `/workflow-audit` reviews effectiveness monthly. **Compound is BLOCKING** — the stop hook prevents session end without capturing learnings.
 
 ---
 
@@ -177,7 +234,7 @@ session-learnings (ephemeral) → `docs/solutions/` (project knowledge) → ADRs
 
 Agents live in `~/.claude/agents/`. Each has its own context window, tool permissions, model, and system prompt.
 
-- **orchestrator** — Task management, sprint lifecycle, agent delegation. Full tool access. Uses opus.
+- **orchestrator** — Task management, sprint lifecycle, agent delegation. Full tool access. Uses sonnet (deterministic checklist doesn't need opus; opus reserved for merge conflicts >3 files).
 - **sprint-executor** — Single sprint execution. Isolated worktree. Uses sonnet. Tools: Read, Write, Edit, Bash, Glob, Grep.
 - **code-reviewer** — Read-only post-sprint review. Uses sonnet. Tools: Read, Grep, Glob.
 
@@ -189,7 +246,7 @@ Sprint agents use `isolation: worktree` in frontmatter. Each gets its own git wo
 
 The main agent is an **orchestrator**, not a worker. Its context contains: system instructions + session learnings + subagent summaries + user messages. If reading file contents or build output directly, delegate to a subagent instead.
 
-**Exceptions:** Playwright browser interaction stays in main agent. Simple file edits (checkboxes, session-learnings) are done directly. Bug investigation may read up to 5 targeted files; more than that, delegate.
+**Exceptions:** Playwright MCP interaction (`browser_snapshot`, `browser_navigate`, etc.) stays in main agent — never delegate browser interaction to subagents. In proot-distro: use `browser_snapshot` only (accessibility tree), never `browser_take_screenshot` (Chromium unavailable). Simple file edits (checkboxes, session-learnings) are done directly. Bug investigation may read up to 5 targeted files; more than that, delegate.
 
 ### Subagent Communication Protocol
 
@@ -238,7 +295,7 @@ Before marking any task or sprint complete:
 4. Are there scenarios the tests don't cover that acceptance criteria imply?
 5. Could functional tests pass while security-relevant behaviors are missing?
 
-Enforced via Stop hook in `settings.json` — agent cannot declare completion until verification passes.
+Enforced via Verification Integrity rules (see Development Rules) and mandatory Phase 5 in plan-build-test.
 
 ### Scope Boundary Enforcement
 
@@ -252,11 +309,18 @@ Stay in scope. Resist "one more thing."
 
 ### Deterministic Safety via Hooks
 
-The "Agent NEVER does" column is enforced as PreToolUse hooks in `~/.claude/settings.json`, not just prompt suggestions. PostToolUse hooks auto-format after edits. Stop hooks enforce Anti-Goodhart verification.
+The "Agent NEVER does" column is enforced as PreToolUse hooks in `~/.claude/settings.json`, not just prompt suggestions. What hooks actually enforce:
 
-- **Hard block** (always denied): `rm -rf /`
+- **PreToolUse(Bash):** Blocks destructive commands and detects proot environment
+- **PostToolUse(Write|Edit):** Auto-formats TS/JS files if Biome or ESLint is configured (skips silently if no linter found; exit 2 on unfixable lint errors)
+- **Stop:** Type-checks TypeScript (exit 2 on type errors) and reminds to run /compound when PRD tasks complete (exit 2 if compound not run)
+- **Notification:** Desktop alert when agent needs attention (no-op in proot)
+
+Anti-Goodhart verification is enforced by sprint-executor Step 8, orchestrator Step 8.5, and plan-build-test Phase 5.5 — not by hooks.
+
+- **Hard block** (always denied): `rm -rf /`, `rm -rf` on system directories (`/etc`, `/usr`, `/var`, `/home`, etc.), `dd`, fork bombs
 - **Soft block** (warns and asks user for confirmation):
-  - Destructive git: `git push --force`, `git push -f`, `git push --force-with-lease`, `git reset --hard`, `git checkout .`, `git restore .`, `git branch -D`, `git clean -f`
+  - Destructive git: `git push --force`, `git push -f`, `git push --force-with-lease`, `git push ... main/master`, `git reset --hard`, `git checkout .`, `git restore .`, `git branch -D`, `git clean -f`, `git stash drop/clear`
   - Forbidden package managers: `npm install/run/exec/start/test/build/ci/init`, `npx` — project uses pnpm exclusively
 
 Soft blocks exit 2 with a descriptive message — the user can re-approve if the operation is genuinely required.
@@ -273,7 +337,13 @@ LLMs are non-deterministic. The most reliable pattern combines:
 2. **Executable tests** — machine-verifiable correctness contract
 3. **Iteration loops** — catch non-deterministic failures (run, fail, fix, run)
 
-Default iteration budget: 3 retries per task. What tests cannot catch: security heuristics, architectural implications, complex layer interactions — human review is the judgment layer.
+**Adaptive retry budget** (replaces fixed 3-retry):
+- `transient` failures (network, timeout, flaky test) → up to 5 retries
+- `logic` failures (wrong approach, broken implementation) → max 2, then try different approach
+- `environment` failures (proot limitation, missing binary) → 1 retry, then mark BLOCKED
+- `config` failures (bad setting, wrong flag) → max 3 retries
+
+What tests cannot catch: security heuristics, architectural implications, complex layer interactions — human review is the judgment layer.
 
 Full evaluation checklists (Stack Evaluation, Diagnostic Loop, Spec Self-Evaluator) live in `~/.claude/docs/evaluation-reference.md`. Load when needed for PRD review or post-sprint verification.
 
@@ -281,7 +351,7 @@ Full evaluation checklists (Stack Evaluation, Diagnostic Loop, Spec Self-Evaluat
 
 ## HARNESS & TOOLING
 
-### Model Assignment Matrix
+### Model Assignment Matrix (adaptive — evolves via `~/.claude/evolution/model-performance.json`)
 
 | Task Type                                     | Model    |
 | --------------------------------------------- | -------- |
@@ -292,9 +362,15 @@ Full evaluation checklists (Stack Evaluation, Diagnostic Loop, Spec Self-Evaluat
 | Bug fix implementation                        | `sonnet` |
 | Test writing                                  | `sonnet` |
 | Verification & regression scan                | `sonnet` |
+| Sprint orchestration (deterministic checklist) | `sonnet` |
 | Complex/multi-file refactoring                | `opus`   |
 | Architectural decisions                       | `opus`   |
-| Merge conflict resolution                     | `opus`   |
+| Merge conflict resolution (>3 files)          | `opus`   |
+
+**Adaptation rules:** After 10+ data points per task type, compound checks `model-performance.json`:
+- If first-try success rate < 70% → propose upgrade to next model tier
+- If first-try success rate > 90% → propose downgrade to save cost
+- Changes require user approval; logged in `~/.claude/evolution/workflow-changelog.md`
 
 ### Parallel Execution with Worktrees
 
@@ -313,9 +389,9 @@ Full evaluation checklists (Stack Evaluation, Diagnostic Loop, Spec Self-Evaluat
 
 `~/.claude/settings.json` contains hooks that guarantee behavior CLAUDE.md can only suggest:
 
-- **PostToolUse(Write|Edit):** Auto-format after every file change
+- **PostToolUse(Write|Edit):** Auto-format after file changes (TS/JS files only, skips generated dirs)
 - **PreToolUse(Bash):** Block destructive commands (rm -rf, force push, deploy)
-- **Stop:** Anti-Goodhart enforcement — verify completion before allowing stop
+- **Stop:** Type-check at end of turn (skips if no code was written), compound reminder (warns if task complete but /compound not run)
 - **Notification:** Desktop alert when agent needs attention
 
 ### Code Intelligence
@@ -380,6 +456,53 @@ When a fix makes things worse, **stop layering fixes on top of broken fixes**:
 4. Never change test assertions just to make them pass without understanding why they failed
 5. Report to the user before changing test expectations on established tests
 
+### Verification Integrity
+
+- NEVER claim a command "passed" without running it and seeing the output
+- NEVER write "lint: PASS (0 issues)" without a preceding lint command execution in the transcript
+- NEVER mark E2E as "PASS" without a preceding E2E command execution in the transcript
+- If a verification step is blocked (environment limitation, missing tool): mark it as `BLOCKED`, never as `PASS`
+- Session learnings verification sections must include actual exit codes
+- "Trust but verify" does not apply — VERIFY, period
+
+### Anti-Premature Completion Protocol
+
+**This protocol exists because of repeated incidents where tasks were declared "complete"
+while the actual running application was broken. It is non-negotiable.**
+
+#### The Three Completion Lies (never do these)
+
+1. **"All tests pass"** — Tests passing does NOT mean the feature works. Tests can pass
+   while the first route shows a visible bug, the dev server cache is corrupted, or
+   runtime dependencies are missing. Test results are a necessary condition, not sufficient.
+
+2. **"Build complete"** — A build completing does NOT mean the app runs. You MUST start
+   the dev server and verify actual routes return correct content — not just HTTP 200,
+   but actual rendered content matching acceptance criteria.
+
+3. **"All items done"** — Claiming completion without re-reading the original plan is
+   the most common failure. Before declaring done: re-read the plan/spec file, enumerate
+   every item, and for each one cite the specific evidence it was completed.
+
+#### Mandatory Completion Checklist (before ANY completion claim)
+
+Before saying "done", "complete", "all tasks finished", or presenting a session report:
+
+1. **Re-read the original plan/spec** — not from memory, actually read the file
+2. **Enumerate remaining items** — list every unchecked `- [ ]` item explicitly
+3. **Cite evidence for each criterion** — "acceptance criterion X was verified by [command]
+   which returned [output]" — not just "tests pass"
+4. **Start the dev server** — verify it starts and key routes serve correct content
+5. **If ANY item is incomplete** — either complete it or report it as incomplete.
+   NEVER claim completion with unfinished items.
+
+#### When to STOP and Report Instead of Claiming Done
+
+- Dev server won't start → BLOCKED, not "complete with known issue"
+- Tests pass but you haven't visually verified the feature → NOT DONE
+- You checked off tasks but didn't re-read the plan → NOT DONE
+- You can't cite specific evidence for an acceptance criterion → NOT MET
+
 ### Post-Implementation Checklist
 
 - All tests passing
@@ -394,11 +517,11 @@ When a fix makes things worse, **stop layering fixes on top of broken fixes**:
 
 ## SESSION LEARNINGS
 
-For multi-task workflows, maintain a session learnings file as **living memory** that survives `/compact`. The project CLAUDE.md specifies the exact path; if none is specified, use `docs/session-learnings.md`.
+Maintain a session learnings file as **living memory** that survives `/compact`. Path from project CLAUDE.md `session-learnings-path`; default: `docs/session-learnings.md`. Created proactively by `/plan-build-test` Phase 0.
 
-**Update rules:** Append errors as they occur, patterns when they repeat across 2+ tasks, rules when mistakes happen, task status as work progresses, agent performance after each completes.
+**Update rules:** Append errors as they occur, patterns when they repeat, rules when mistakes happen, task status as work progresses. Use structured format with categories (ENV, LOGIC, CONFIG, etc.) — full schema in `/compound` skill Step 6.
 
-**Promotion rule:** When a session learning proves useful across 2+ tasks, promote it to a solution doc in `docs/solutions/`.
+**Promotion:** 2+ tasks → `docs/solutions/`. 2+ projects → `~/.claude/evolution/error-registry.json` + memory.
 
 ---
 
@@ -415,24 +538,21 @@ When `/compact` is called or context is refreshed mid-task:
 
 ## SELF-IMPROVEMENT PROTOCOL
 
-### Per-Task Compound (every task)
+### Per-Task Compound (every task — enforced by stop hook)
 
 1. **Capture:** What worked? What didn't? What is the reusable insight?
-2. **Document:** Create solution doc if pattern is reusable. Update session learnings.
-3. **Update the system:** If a rule, pattern, or doc needs changing, do it now — not "later."
+2. **Document:** Create solution doc if reusable. Update session learnings.
+3. **Update the system:** If a rule/pattern/doc needs changing, do it now — not "later."
 4. **Verify:** "Would the system catch this automatically next time?" If no, compound is incomplete.
+5. **Capture user corrections** as error-registry entries and model-performance data (richest signal).
 
 ### Per-Session Compound (end of session)
 
-1. **Compile:** Analyze session learnings — error frequency, categories, model effectiveness
-2. **Generate rules:** For each repeated error, create a rule with trigger/action/reason
-3. **Promote to solutions:** Move confirmed patterns from session learnings to `docs/solutions/`
-4. **Persist to MEMORY.md:** Only patterns confirmed across 2+ tasks
-5. **Suggest CLAUDE.md updates** for workflow improvements
+Run `/compound` — it handles: compile, generate rules, promote to solutions, persist to memory, cross-project evolution (error-registry, model-performance, workflow-changelog, session postmortem). Full protocol in `~/.claude/skills/compound/SKILL.md`.
+
+**Periodic:** Run `/workflow-audit` monthly or after 10+ sessions.
 
 ### The Three Compound Questions
-
-Before closing any task:
 
 1. "What was the hardest decision made here?"
 2. "What alternatives were rejected, and why?"
@@ -452,7 +572,7 @@ Anti-patterns reference: `~/.claude/docs/anti-patterns-full.md`. Key rule: match
 - **Commits:** Atomic. Format: `<type>: <what changed>`
 - **Types:** `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `perf`
 - **Never force-push to main.** Always create PRs for non-trivial changes.
-- **Exception:** `/ship-test-ensure` pushes directly to main (no PR) because staging auto-deploys on push to main and the skill needs to test the deployed app. Local verification gate (Phase 0.3) + prior `/plan-build-test` execution serve as quality checks.
+- **All deploys go through CI/CD pipelines.** Never push directly to main. `/ship-test-ensure` creates a branch, opens a PR, merges via CI/CD, then follows the deploy pipeline. Rollback is also via PR (revert commit → PR → merge).
 - **Before committing:** Run linter to catch lint/format issues.
 
 ### Security Checklist
@@ -482,3 +602,46 @@ After every task, evaluate whether documentation needs updating (part of compoun
 **When to update:** New route, new component/package, architecture change, new env var, new command/script, significant dependency change, new pattern (solution doc), deployment process change, bug class eliminated (prevention rule).
 
 **When NOT to update:** Minor CSS/copy changes, internal refactors not changing interfaces, test-only changes, dependency patch updates.
+
+---
+
+## PROOT-DISTRO ARM64 ENVIRONMENT
+
+**Auto-detection:** If `uname -r` contains `PRoot-Distro` AND `uname -m` = `aarch64`, all rules in this section are ACTIVE. Three layers handle proot:
+- **settings.json env:** Sets `NODE_OPTIONS`, `CHOKIDAR_USEPOLLING`, `WATCHPACK_POLLING` globally (always active)
+- **proot-preflight.sh:** Runs on first Bash command per session; WARNS about disk, symlinks, SST locks, .npmrc (informational only, exit 0)
+- **worktree-preflight.sh:** Called by orchestrator Step 0; sets env vars and fixes deps for sprint execution
+
+**Full reference:** `~/.claude/docs/proot-distro-environment.md`
+
+### Mandatory Rules (when proot-distro detected)
+
+1. **NEVER attempt `playwright install chromium`** or `browser_take_screenshot` — Chromium doesn't run in proot ARM64. Use `browser_snapshot` (accessibility tree) instead.
+2. **NEVER trust `pnpm install` blindly** — Check `.npmrc` for `node-linker=hoisted` first. After install, verify: `find node_modules/.bin -type l ! -exec test -e {} \; -print | head -5`
+3. **NEVER set tight timeouts** — Everything runs 2-5x slower. Multiply expected times by 3x minimum.
+4. **NEVER use Lighthouse/PageSpeed as quality gates** — Performance scores are unreliable in proot. Mark as `BLOCKED: proot-distro ARM64`.
+5. **NEVER rely on `inotify`** — Polling env vars are set globally in `settings.json`.
+6. **ALWAYS check for SST state locks** before deploy: `ls .sst/lock* 2>/dev/null`
+7. **NODE_OPTIONS is set globally** in `settings.json` — no manual export needed.
+8. **ALWAYS use retry-with-backoff for external APIs** — `source ~/.claude/hooks/retry-with-backoff.sh`
+
+### Known Native Module Failures
+
+These packages have native binaries that WILL fail in proot-distro:
+- `@parcel/watcher` → use `PARCEL_WATCHER_BACKEND=fs-events` or JS fallback
+- `@rollup/rollup-linux-arm64-gnu` → use `--ignore-scripts` and rebuild selectively
+- `sharp` → use JS-based image processing alternatives
+- `turbo` (native) → use non-native mode
+- Any `node-gyp` compilation → prefer JS alternatives
+
+### Go Binary /.l2s/ Fix
+
+Go binaries resolve libs via `/proc/self/exe`, which proot translates to `/.l2s/`. Copy required resource files there:
+```bash
+if [ -d "/.l2s" ]; then cp /path/to/lib/*.d.ts /.l2s/; fi
+```
+Already handled for tsgo in `end-of-turn-typecheck.sh`.
+
+### Error Pattern → Automatic Response
+
+Full error pattern table with root causes and fixes: `~/.claude/docs/proot-distro-environment.md`. Key patterns to recognize immediately: `ENOENT .bin/` (broken symlink → `pnpm install`), `spawn EACCES` (binary not executable → JS alternative), `heap out of memory` (→ `NODE_OPTIONS`), `Chromium not found` (→ `browser_snapshot` MCP), `SIGBUS/SIGSEGV` on native binary (→ JS fallback).

@@ -46,56 +46,79 @@ THEN [observable result]
 - Performance: [Budgets if applicable]
 - Security: [Requirements]
 
-## 9. Open Questions
+## 9. Shared Contracts
+
+Define interfaces, types, design tokens, and component APIs that multiple sprints will consume. This is the coordination mechanism that replaces cross-sprint file sharing.
+
+- **Design tokens:** [Colors, spacing, typography — reference or define here]
+- **Component interfaces:** [Props, APIs that downstream sprints depend on]
+- **Data types:** [Shared TypeScript types, schemas, API contracts]
+- **Layout structure:** [Page layout, grid system, breakpoints]
+
+## 10. Open Questions
 
 - [ ] [Known unknown — who should answer?]
 
-## 10. Uncertainty Policy
+## 11. Uncertainty Policy
 
 When uncertain: [Flag / Guess-and-document / Stop]
 When [X] conflicts with [Y]: prefer [X/Y]
 
-## 11. Verification
+## 12. Verification
 
 - Deterministic: [Tests, linters, type checks]
 - Manual: [What human reviewer should check]
 
-## 12. Sprint Decomposition
+## 13. Sprint Decomposition
 
-### Sprint [N]: [Title]
+Maximum 5 sprints. Each sprint is extracted into its own file under `sprints/` during planning.
+
+Sprint specs are written to: `[this-prd-directory]/sprints/NN-title.md`
+Progress is tracked in: `[this-prd-directory]/progress.json`
+
+### Sprint Overview
+
+| Sprint | Title        | Depends On | Batch | Model  | Parallel With |
+| ------ | ------------ | ---------- | ----- | ------ | ------------- |
+| 1      | [Foundation] | None       | 1     | sonnet | —             |
+| 2      | [Core UI]    | Sprint 1   | 2     | sonnet | —             |
+| 3      | [Feature A]  | Sprint 2   | 3     | sonnet | Sprint 4      |
+| 4      | [Feature B]  | Sprint 2   | 3     | sonnet | Sprint 3      |
+| 5      | [Polish]     | 3, 4       | 4     | sonnet | —             |
+
+### Sprint [N]: [Title] → `sprints/0N-title.md`
+
+Each sprint spec file follows this structure (see sprint-spec-template.md):
 
 **Objective:** [One sentence]
 **Estimated effort:** [S/M/L]
 **Dependencies:** [Sprint N-1 / None]
-**Status:** [ ] Not Started / [~] In Progress / [x] Complete / [!] Blocked
 
-#### Tasks
+**File Boundaries:**
+
+- `files_to_create`: [new files]
+- `files_to_modify`: [existing files this sprint can touch]
+- `files_read_only`: [files to reference but NOT modify]
+- `shared_contracts`: [interfaces/types from Shared Contracts section above]
+
+**Tasks:**
 
 - [ ] [Task 1 — atomic, verifiable]
 - [ ] [Task 2]
 
-#### Acceptance Criteria (Sprint-level)
+**Acceptance Criteria:**
 
 - [ ] [Binary-testable condition]
 
-#### Verification (Sprint-level)
+**Verification:**
 
 - [ ] [Test command]
 - [ ] [Build command]
 
-#### Agent Notes (filled during execution)
+## 14. Execution Log
 
-- Assigned to: [Agent ID / session]
-- Started: [timestamp]
-- Completed: [timestamp]
-- Decisions made: [list with reasoning]
-- Assumptions: [list with confidence level]
-- Issues found: [list]
+[Filled during execution — tracked in progress.json]
 
-## 13. Execution Log
-
-[Filled during execution — sprint status, agent assignments, blockers]
-
-## 14. Learnings (filled after all sprints complete)
+## 15. Learnings (filled after all sprints complete)
 
 [Compound step output]

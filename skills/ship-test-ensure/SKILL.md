@@ -10,12 +10,26 @@ description: >
   verified production with perfect scores.
 ---
 
-# Ship, Test & Ensure — Full Pipeline from Commit to Perfect Production Scores
+# Ship, Test & Ensure — Full CI/CD Pipeline from Commit to Perfect Production Scores
 
-End-to-end shipping pipeline: commit, push, follow staging deploy, E2E on staging, deploy to production, follow production deploy, run PageSpeed/Lighthouse on production, iterate until 100/100 on all categories with zero errors. Every step has a fix loop — issues found are fixed, re-pushed, and re-verified.
+End-to-end shipping pipeline: commit, push branch, create PR, merge via CI/CD, follow staging deploy, E2E on staging, deploy to production via CI/CD workflow, run PageSpeed/Lighthouse on production. Every step has a fix loop — issues found are fixed, re-pushed, and re-verified.
+
+**All deploys go through CI/CD pipelines — never push directly to main.**
+
+**Autonomous by default (with one mandatory gate).** This skill runs without user
+interruption through commit, staging deploy, and staging E2E verification. The only
+mandatory human checkpoint is **production deploy confirmation** (Phase 4.1). All other
+checkpoints use safe defaults. This is a permanent design choice — the user's workflow
+is: `/plan-build-test` (autonomous) → manual testing → `/ship-test-ensure` (autonomous
+through staging, confirms before prod). See CLAUDE.md "Autonomous Pipeline" for details.
+
+**Mandatory gates (always ask, even in autonomous mode):**
+- Phase 4.1: Production deploy confirmation
+- Phase 6.3: Rollback decision
 
 **Inherited from CLAUDE.md** (applies to all phases below):
 
+- Autonomous Pipeline — run without interruption, use safe defaults at checkpoints
 - Context Engineering — orchestrator pattern, subagent communication, context budget
 - Model Assignment Matrix — haiku/sonnet/opus per task type
 - Session Learnings — compact-safe memory at the path specified in project CLAUDE.md
@@ -92,27 +106,20 @@ If `## Execution Config` is missing from the project CLAUDE.md, **STOP** and ask
 
 This skill works best in a fresh context window — it's a long pipeline and context space matters.
 
-If this is NOT a fresh context (i.e., significant prior conversation exists), present the user with options via `AskUserQuestion`:
+**Autonomous mode (default):** Auto-select "Continue here" and proceed without asking.
+The user invoked `/ship-test-ensure` expecting it to run — don't interrupt with context
+management questions. If context becomes an issue during execution, the Context Rot
+Protocol will catch it.
 
-> **Ship & Verify works best in a clean context window.** Would you like to:
+**Override:** If the user explicitly asks about context management, or if the current
+context is severely degraded (signs from Context Rot Protocol), then present options via
+`AskUserQuestion`:
 
-Options:
-
-- **Auto-start fresh context (Recommended)** — Save pipeline state to session learnings file, then automatically start a new session by running: `claude -p "/ship-test-ensure"`. The new session picks up from session learnings.
-- **Start fresh manually** — Save state, then you start a new conversation and run `/ship-test-ensure`.
+- **Start fresh context** — Save pipeline state to session learnings file, then you start a new conversation and run `/ship-test-ensure`. The new session picks up from session learnings.
 - **Continue here** — Run in the current context window.
 
-When the user selects **"Auto-start fresh context"**:
-
-1. Write `## Ship Pipeline State` with `Phase: 0 — awaiting fresh context` to the session learnings file
-2. Run: `claude -p "/ship-test-ensure"` to start a new session
-3. **STOP the current session.**
-
-When the user selects **"Start fresh manually"**:
-
-1. Write `## Ship Pipeline State` to the session learnings file
-2. Output: "Plan saved. Start a new conversation and run `/ship-test-ensure`."
-3. **STOP.**
+**NOTE:** Do NOT use `claude -p` for fresh context — it is single-turn print mode and
+cannot execute multi-step pipelines like ship-test-ensure.
 
 If this IS a fresh context (first message or resumed from session learnings), skip to Step 0.1.
 
@@ -154,39 +161,81 @@ All commands come from the project's Execution Config.
 
 ---
 
-## Phase 1: Commit & Push
+## Phase 1: Commit, Branch & PR
 
-### Step 1.1: Stage and Commit
+**All code reaches main through a PR — never push directly.**
 
-Review changes with `git status` and `git diff`. Stage specific files (never `git add -A`). Create a commit:
+### Step 1.1: Capture Rollback Point and Create Branch
+
+**IMPORTANT: Create the branch BEFORE committing.** Committing on main first would make the
+PR show no diff (main already has the commit). The branch must diverge from main before
+the commit is added.
+
+```bash
+# Capture the rollback point BEFORE any changes reach main
+PRE_DEPLOY_SHA=$(git rev-parse main)
+echo "Rollback SHA: $PRE_DEPLOY_SHA"
+
+# Create feature branch from current HEAD
+BRANCH_NAME="ship/$(date +%Y%m%d-%H%M)-$(echo '<brief-description>' | tr ' ' '-' | tr '[:upper:]' '[:lower:]' | head -c 40)"
+git checkout -b "$BRANCH_NAME"
+```
+
+### Step 1.2: Stage and Commit
+
+Review changes with `git status` and `git diff`. Stage specific files (never `git add -A`). Create a commit on the feature branch:
 
 ```bash
 git add [specific files]
 git commit -m "$(cat <<'EOF'
 <type>: <descriptive message>
 
-Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+Co-Authored-By: Claude <noreply@anthropic.com>
 EOF
 )"
 ```
 
 Commit message should accurately describe all changes. Use conventional commit types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `perf`.
 
-### Step 1.2: Push to Main
-
-> **Note:** This skill intentionally pushes directly to main (no PR). Staging auto-deploys on push to main, and the skill must test the live deployed app. Quality is gated by Phase 0.3 local verification and prior `/plan-build-test` execution.
+Push the branch:
 
 ```bash
-git push origin main
+git push -u origin "$BRANCH_NAME"
 ```
 
-If push fails (e.g., behind remote), pull with rebase first:
+### Step 1.3: Create PR and Merge
+
+Create a PR targeting main:
 
 ```bash
-git pull --rebase origin main && git push origin main
+gh pr create --repo {github_repo} --title "<type>: <description>" --body "$(cat <<'EOF'
+## Summary
+<bullet points>
+
+## Verification
+- Local build: PASS
+- Local tests: PASS
+- Local lint: PASS
+- Local type-check: PASS
+
+Generated by /ship-test-ensure pipeline
+EOF
+)"
 ```
 
-### Step 1.3: Save Pipeline State
+Wait for CI checks to pass on the PR, then merge:
+
+```bash
+# Wait for CI checks
+gh pr checks [PR_NUMBER] --repo {github_repo} --watch
+
+# Merge via CI/CD (squash merge keeps history clean)
+gh pr merge [PR_NUMBER] --repo {github_repo} --squash --delete-branch
+```
+
+If CI checks fail on the PR: diagnose, fix, push to the same branch, wait for re-run. Max 3 cycles.
+
+### Step 1.4: Save Pipeline State
 
 Update the session learnings file with:
 
@@ -195,8 +244,11 @@ Update the session learnings file with:
 
 - **Started:** [timestamp]
 - **Apps:** [detected app names]
+- **Branch:** [branch name]
+- **PR:** [PR number/URL]
 - **Commit:** [SHA]
-- **Phase:** 1 complete — pushed to main
+- **Pre-deploy SHA:** [main SHA before merge]
+- **Phase:** 1 complete — PR merged to main via CI/CD
 ```
 
 ---
@@ -225,8 +277,13 @@ gh run view [RUN_ID] --repo {github_repo} --json jobs --jq '.jobs[] | {name, sta
 Track elapsed time from first poll. If a workflow has not completed after **15 minutes**:
 
 1. Get current job statuses: `gh run view [RUN_ID] --repo {github_repo} --json jobs`
-2. Report to user: "Staging deploy has been running for 15+ minutes. [Job X] is still [status]. This may indicate a hung workflow or infrastructure issue."
-3. Present options via `AskUserQuestion`:
+2. Log to session learnings: "Deploy running 15+ minutes. [Job X] is still [status]."
+
+**Autonomous mode (default):** Auto-select "Wait 10 more minutes" (extend timeout to
+25 min total). If still not complete after 25 minutes, report BLOCKED to user with full
+job statuses and stop the pipeline. Do not auto-cancel — that's a destructive action.
+
+**Override:** If the user is actively watching, present options via `AskUserQuestion`:
    - **Wait 10 more minutes** — extend timeout once (25 min total max)
    - **Cancel and retry** — `gh run cancel [RUN_ID]` then re-push
    - **Investigate** — stop pipeline, user checks CI manually
@@ -298,7 +355,11 @@ All tests must pass. Update pipeline state:
 
 ## Phase 4: Deploy to Production
 
-### Step 4.1: Confirm with User
+### Step 4.1: Confirm with User (MANDATORY — never skip, even in autonomous mode)
+
+**This is a non-negotiable safety gate.** Production deploys always require explicit user
+confirmation. This is the one checkpoint that autonomous mode does NOT bypass. The user
+designed this workflow specifically to keep this gate while removing all others.
 
 Use `AskUserQuestion`:
 
@@ -344,6 +405,25 @@ Update pipeline state:
 ---
 
 ## Phase 5: PageSpeed Insights & Lighthouse Audit
+
+### Step 5.0: Environment Detection
+
+```bash
+PROOT_MODE=false
+if uname -r 2>/dev/null | grep -q PRoot-Distro; then
+  PROOT_MODE=true
+fi
+```
+
+**If proot detected:**
+- Skip local Lighthouse CLI (Chromium doesn't run in proot ARM64)
+- Use PageSpeed Insights API only (tests the remote production site, which is valid)
+- Accept configurable thresholds: read `lighthouse_threshold` from project CLAUDE.md
+  Execution Config (default: 100). In proot, if not configured, warn and default to 90.
+- Mark local Lighthouse as `BLOCKED: proot-distro ARM64` in the report
+
+**If NOT proot:** Use PageSpeed Insights API (preferred for production accuracy).
+Local Lighthouse CLI is optional — PSI tests the actual deployed site which is more accurate.
 
 ### Step 5.1: Run Google PageSpeed Insights API
 
@@ -441,13 +521,22 @@ List all failing audits grouped by fixability.
    >
    > Return: files modified, what changed, expected score improvement.
 
-4. **After fixes:** Commit, push, follow deploy (Phase 2 + 4 fast path — skip E2E if changes are cosmetic/meta-only)
+4. **After fixes:** Commit to the same branch, push, create PR, merge via CI/CD (Phase 1 + 2 + 4 fast path — skip E2E if changes are cosmetic/meta-only)
 
 5. **Re-run PageSpeed** on the affected pages
 
 6. **Repeat until all categories hit 100** or improvements plateau
 
-**Max iterations:** 5 full fix-deploy-test cycles. If scores plateau (same score 2 cycles in a row), report to user with remaining issues and ask for guidance.
+**Max iterations:** 5 full fix-deploy-test cycles. If scores plateau (same score 2 cycles in a row):
+
+**Autonomous mode (default):** Accept the current scores, classify remaining issues
+(code-fixable / infrastructure / third-party), and include the classification in the
+final report. Do not block the pipeline on Lighthouse scores — they are performance
+optimizations, not correctness issues. The user will see the report and decide on
+follow-up.
+
+**Override:** If the user explicitly asked for perfect scores, report the plateau and
+ask for guidance.
 
 ### Step 5.5: Handle Unfixable Scores
 
@@ -501,6 +590,40 @@ Some audits may be impossible to fix to 100 (e.g., third-party scripts, CDN late
 2. If a deploy failed for a new reason → document in `docs/solutions/infrastructure/`
 3. Update the session learnings file with pipeline results
 4. If any pattern repeated across pages → add prevention rule to the project's patterns/solutions docs
+5. **Cross-project promotion** — run compound Steps 7-8 (from /compound skill):
+   - Update `~/.claude/evolution/error-registry.json` with any deploy/staging/Lighthouse errors
+   - Update `~/.claude/evolution/model-performance.json` with model performance this session
+   - Log any system changes in `~/.claude/evolution/workflow-changelog.md`
+   - Write session postmortem to `~/.claude/evolution/session-postmortems/`
+
+### Step 6.3: Rollback Protocol
+
+If production **deploy** (Phase 4) fails after 3 fix iterations, or if critical functional
+issues are found post-deploy. Do NOT trigger rollback for Lighthouse score issues (Phase 5)
+— those are performance optimizations, not production incidents.
+
+**This is a mandatory gate — always ask the user, even in autonomous mode.** Rollback is
+a destructive action that requires human judgment.
+
+1. Present rollback option to user:
+   > **Production verification failing after 3 fix cycles.**
+   > Pre-deploy SHA: `{PRE_DEPLOY_SHA}`
+   > Options: **Revert and redeploy** | **Continue fixing** | **Accept current state**
+
+2. If user chooses revert:
+   ```bash
+   git checkout main && git pull origin main
+   git checkout -b revert/rollback-$(date +%Y%m%d-%H%M)
+   # Revert ALL commits since pre-deploy SHA (not just HEAD)
+   git revert --no-edit ${PRE_DEPLOY_SHA}..HEAD
+   git push -u origin HEAD
+   gh pr create --repo {github_repo} --title "revert: rollback to pre-deploy state" \
+     --body "Automated rollback via /ship-test-ensure. Reverts all commits since ${PRE_DEPLOY_SHA}."
+   gh pr merge --squash --delete-branch --repo {github_repo}
+   # Follow deploy to confirm rollback succeeded
+   ```
+
+3. Log the rollback in session-learnings and error-registry
 
 ---
 

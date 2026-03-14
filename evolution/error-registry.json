@@ -1,0 +1,21 @@
+{
+  "_schema": "Cross-project error registry. Maps error patterns to root causes, fixes, and projects where they occurred. Entries may include approaches_that_failed for negative learning (approaches tried and why they were bad).",
+  "_categories": ["ENV", "LOGIC", "CONFIG", "DEPENDENCY", "SECURITY", "TEST", "DEPLOY", "PROOT", "MERGE", "PERFORMANCE"],
+  "_entry_template": {
+    "pattern": "error message or symptom regex",
+    "category": "ENV|LOGIC|CONFIG|...",
+    "root_cause": "why it happens",
+    "fix": "how to fix it",
+    "auto_preventable": false,
+    "prevention": "hook/rule that prevents it (if auto_preventable)",
+    "approaches_that_failed": [
+      { "approach": "what was tried", "why_bad": "why it didn't work or made things worse" }
+    ],
+    "projects_seen": ["project-name"],
+    "first_seen": "2026-03-14",
+    "last_seen": "2026-03-14",
+    "occurrences": 1
+  },
+  "_updated": "2026-03-14T00:00:00Z",
+  "entries": []
+}

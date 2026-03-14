@@ -3,6 +3,10 @@
 *.secret
 .credentials.json
 
+# Exclude backup files and ephemeral session data
+*.bak.*
+sessions/
+
 # Exclude Claude's internal state files
 .state/
 projects/

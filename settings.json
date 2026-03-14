@@ -1,19 +1,36 @@
 {
   "env": {
-    "ENABLE_LSP_TOOL": "1"
+    "ENABLE_LSP_TOOL": "1",
+    "NODE_OPTIONS": "--max-old-space-size=2048",
+    "CHOKIDAR_USEPOLLING": "true",
+    "WATCHPACK_POLLING": "true"
   },
   "permissions": {
-    "defaultMode": "bypassPermissions",
-    "deny": []
+    "deny": [],
+    "defaultMode": "bypassPermissions"
   },
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Write|Edit",
+        "matcher": "Write|Edit|MultiEdit",
         "hooks": [
           {
             "type": "command",
-            "command": "FILE=$(cat | jq -r '.tool_input.file_path // .tool_input.path // empty'); if [ -n \"$FILE\" ] && [ -f \"$FILE\" ]; then EXT=\"${FILE##*.}\"; DIR=$(dirname \"$FILE\"); BIOME=''; while [ \"$DIR\" != '/' ]; do if [ -f \"$DIR/biome.json\" ] || [ -f \"$DIR/biome.jsonc\" ]; then BIOME=\"$DIR\"; break; fi; DIR=$(dirname \"$DIR\"); done; if [ -n \"$BIOME\" ]; then pnpm exec biome format --write \"$FILE\" 2>/dev/null; else case \"$EXT\" in js|jsx|ts|tsx|json|css|md) npx prettier --write \"$FILE\" 2>/dev/null ;; py) black --quiet \"$FILE\" 2>/dev/null ;; esac; fi; fi; exit 0"
+            "command": "~/.claude/hooks/post-edit-quality.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/end-of-turn-typecheck.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/compound-reminder.sh"
           }
         ]
       }
@@ -24,19 +41,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "COMMAND=$(cat | jq -r '.tool_input.command'); if echo \"$COMMAND\" | grep -qE 'rm\\s+-rf\\s+/'; then echo 'Blocked: rm -rf / is never allowed.' >&2; exit 2; elif echo \"$COMMAND\" | grep -qE 'git\\s+push\\s+.*-(-force|f)\\b|git\\s+push\\s+--force-with-lease|git\\s+reset\\s+--hard|git\\s+checkout\\s+\\.|git\\s+restore\\s+\\.|git\\s+branch\\s+-D|git\\s+clean\\s+-f'; then echo '⚠️  Destructive git operation detected: this command may discard work or affect shared state. If this operation is required, re-run it and approve when prompted.' >&2; exit 2; elif echo \"$COMMAND\" | grep -qE '\\bnpm\\s+(install|run|exec|start|test|build|ci|init)\\b|\\bnpx\\s+'; then echo '⚠️  npm/npx detected. This project uses pnpm exclusively. Use pnpm/pnpm exec/pnpm dlx instead. If npm/npx is truly required here, re-run and approve.' >&2; exit 2; else exit 0; fi"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
+            "command": "~/.claude/hooks/block-dangerous.sh"
+          },
           {
-            "type": "prompt",
-            "prompt": "You MUST respond with ONLY a JSON object — no explanation, no markdown, no text before or after. Classify the conversation: (A) Implementation task — code was written or edited to fulfill specific acceptance criteria (look for Write/Edit tool calls that changed source code, not just config or docs). (B) Everything else — discussion, planning, Q&A, audit, review, config changes, documentation edits, workflow fixes, CLAUDE.md/settings.json edits. If B: respond exactly {\"decision\": \"allow\"} and nothing else. If A: check — all AC met? Tests run? Anti-Goodhart passed (tests validate behavior, not just output)? If incomplete, respond exactly {\"decision\": \"block\", \"reason\": \"Incomplete: [what's missing]\"} and nothing else. If all done, respond exactly {\"decision\": \"allow\"} and nothing else. CRITICAL: Your entire response must be valid JSON. No other text.",
-            "timeout": 30
+            "type": "command",
+            "command": "~/.claude/hooks/proot-preflight.sh"
           }
         ]
       }
@@ -47,7 +56,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "osascript -e 'display notification \"Claude needs attention\" with title \"Claude Code\"' 2>/dev/null || notify-send 'Claude Code' 'Claude needs attention' 2>/dev/null; exit 0"
+            "command": "notify-send 'Claude Code' 'Claude needs attention' 2>/dev/null; exit 0"
           }
         ]
       }
@@ -65,6 +74,7 @@
     "pyright-lsp@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true
   },
-  "skipDangerousModePermissionPrompt": true,
-  "effortLevel": "high"
+  "extraKnownMarketplaces": {},
+  "effortLevel": "high",
+  "skipDangerousModePermissionPrompt": true
 }
