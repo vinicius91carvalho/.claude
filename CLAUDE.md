@@ -164,7 +164,41 @@ Large PRDs decompose into Sprints — self-contained units for one agent in a he
 6. Each sprint is **extracted into its own spec file** during planning (not inline in the PRD)
 7. Sprint agents load ONLY their sprint spec file — never the full PRD
 
-**Sprint File Structure:** `spec.md` + `progress.json` + `sprints/NN-title.md` per sprint. Each sprint spec declares **file boundaries** (`files_to_create`, `files_to_modify`, `files_read_only`, `shared_contracts`) to prevent parallel agents from conflicting. If two sprints need the same file, they MUST be sequential. Full structure and JSON schema in `~/.claude/skills/plan/SKILL.md`.
+**Sprint File Structure:** `spec.md` + `progress.json` + `INVARIANTS.md` + `sprints/NN-title.md` per sprint. Each sprint spec declares **file boundaries** (`files_to_create`, `files_to_modify`, `files_read_only`, `shared_contracts`) to prevent parallel agents from conflicting. If two sprints need the same file, they MUST be sequential. Full structure and JSON schema in `~/.claude/skills/plan/SKILL.md`.
+
+### Build Candidate
+
+A **Build Candidate** is a tagged commit that declares "this specification is complete enough to build from" — analogous to a release candidate, but for the design phase. It is the formal gate between planning and execution.
+
+**When to tag:** After the PRD, sprint specs, progress.json, and INVARIANTS.md are all written and reviewed. The `/plan` skill tags the Build Candidate; `/plan-build-test` verifies it exists before execution.
+
+**What it includes:** PRD spec.md, all sprint specs, progress.json, INVARIANTS.md, and any shared contract definitions. Tag format: `build-candidate/<prd-name>`.
+
+**Why it matters:** Without a formal design-done gate, agents start building from incomplete specs. Every ambiguity resolved before implementation is a wrong guess prevented during implementation.
+
+### Architecture Invariant Registry (INVARIANTS.md)
+
+**The Modular Success Trap:** Individual modules pass all tests in isolation, but integration seams break because agents independently invent incompatible vocabularies for shared concepts. AI amplifies this — velocity outpaces integration, agents excel at local correctness, and agents don't share working memory.
+
+**Solution:** `INVARIANTS.md` at the project root (and optionally at component level) defines every cross-cutting concept with machine-verifiable contracts. Enforced by `check-invariants.sh` PostToolUse hook — violations are caught immediately after any edit.
+
+**Format:**
+
+```markdown
+## [Concept Name]
+- **Owner:** [bounded context that defines this concept]
+- **Preconditions:** [what consumers must satisfy before using this]
+- **Postconditions:** [what the owner guarantees after execution]
+- **Invariants:** [what must always hold across all contexts]
+- **Verify:** `shell command that exits 0 if invariant holds`
+- **Fix:** [how to fix if violated]
+```
+
+**Dependency direction:** If A depends on B, B owns the contract. Consumers declare which contracts they consume and must satisfy preconditions. This prevents the failure where consumers independently invent expectations about a provider's behavior.
+
+**Cascading invariants:** Project-level INVARIANTS.md applies everywhere. Component-level INVARIANTS.md adds constraints for specific directories. The hook walks up from the edited file to the project root, checking all levels.
+
+**When to create:** During the `/plan` phase (PRD+Sprint mode), after sprint decomposition. The INVARIANTS.md is part of the Build Candidate. Each entry specifies owner, preconditions, postconditions, invariants, and a verify command.
 
 **Orchestrator design:** Deterministic checklist — read progress.json → find next batch → spawn sprint-executors with ONLY their sprint spec → collect results → code review → merge → dev server verification → update progress.json → return. Minimal LLM judgment, maximum structure. Full protocol in `~/.claude/agents/orchestrator.md`.
 
@@ -312,8 +346,9 @@ Stay in scope. Resist "one more thing."
 The "Agent NEVER does" column is enforced as PreToolUse hooks in `~/.claude/settings.json`, not just prompt suggestions. What hooks actually enforce:
 
 - **PreToolUse(Bash):** Blocks destructive commands and detects proot environment
-- **PostToolUse(Write|Edit):** Auto-formats TS/JS files if Biome or ESLint is configured (skips silently if no linter found; exit 2 on unfixable lint errors)
-- **Stop:** Type-checks TypeScript (exit 2 on type errors) and reminds to run /compound when PRD tasks complete (exit 2 if compound not run)
+- **PreToolUse(Write|Edit):** TDD enforcement — blocks production code edits if no corresponding test file exists (`check-test-exists.sh`). Write the test first.
+- **PostToolUse(Write|Edit):** Auto-formats TS/JS files if Biome or ESLint is configured (skips silently if no linter found; exit 2 on unfixable lint errors). Then verifies INVARIANTS.md rules — blocks if any machine-verifiable invariant is violated (`check-invariants.sh`).
+- **Stop:** Type-checks TypeScript (exit 2 on type errors), reminds to run /compound when PRD tasks complete (exit 2 if compound not run), and enforces Anti-Premature Completion Protocol — blocks if task marked complete without verification evidence (`verify-completion.sh`)
 - **Notification:** Desktop alert when agent needs attention (no-op in proot)
 
 Anti-Goodhart verification is enforced by sprint-executor Step 8, orchestrator Step 8.5, and plan-build-test Phase 5.5 — not by hooks.
@@ -389,9 +424,10 @@ Full evaluation checklists (Stack Evaluation, Diagnostic Loop, Spec Self-Evaluat
 
 `~/.claude/settings.json` contains hooks that guarantee behavior CLAUDE.md can only suggest:
 
-- **PostToolUse(Write|Edit):** Auto-format after file changes (TS/JS files only, skips generated dirs)
 - **PreToolUse(Bash):** Block destructive commands (rm -rf, force push, deploy)
-- **Stop:** Type-check at end of turn (skips if no code was written), compound reminder (warns if task complete but /compound not run)
+- **PreToolUse(Write|Edit):** TDD hard gate — block production code edits without corresponding test file (`check-test-exists.sh`)
+- **PostToolUse(Write|Edit):** Auto-format after file changes (TS/JS files only, skips generated dirs). Verify INVARIANTS.md rules — block if any invariant violated (`check-invariants.sh`)
+- **Stop:** Type-check at end of turn (skips if no code was written), compound reminder (warns if task complete but /compound not run), anti-premature completion gate (blocks if task marked complete without verification evidence — `verify-completion.sh`)
 - **Notification:** Desktop alert when agent needs attention
 
 ### Code Intelligence
@@ -493,8 +529,19 @@ Before saying "done", "complete", "all tasks finished", or presenting a session 
 3. **Cite evidence for each criterion** — "acceptance criterion X was verified by [command]
    which returned [output]" — not just "tests pass"
 4. **Start the dev server** — verify it starts and key routes serve correct content
-5. **If ANY item is incomplete** — either complete it or report it as incomplete.
+5. **Test as the user, not the builder** — verify with non-privileged/non-admin accounts.
+   Superuser accounts mask integration failures (bypass permission checks, pre-seeded data
+   masks config gaps, admin roles paper over capability mismatches). Test as the user who
+   will actually use the system.
+6. **If ANY item is incomplete** — either complete it or report it as incomplete.
    NEVER claim completion with unfinished items.
+7. **Write completion evidence** — after all checks pass, write the evidence marker file
+   so the `verify-completion.sh` Stop hook can confirm verification was performed.
+
+**Enforced as a hard gate:** The `verify-completion.sh` Stop hook blocks the agent from
+finishing if a task is marked complete without a verification evidence marker. This
+promotes the protocol from instructions to enforcement — the agent cannot claim "done"
+without actually performing the checks.
 
 #### When to STOP and Report Instead of Claiming Done
 
@@ -502,6 +549,7 @@ Before saying "done", "complete", "all tasks finished", or presenting a session 
 - Tests pass but you haven't visually verified the feature → NOT DONE
 - You checked off tasks but didn't re-read the plan → NOT DONE
 - You can't cite specific evidence for an acceptance criterion → NOT MET
+- You only tested as admin/superuser → NOT DONE (test as a regular user)
 
 ### Post-Implementation Checklist
 

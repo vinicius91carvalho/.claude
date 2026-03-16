@@ -10,6 +10,7 @@ This system is primarily shaped by hands-on experience building production softw
 - **[Context Engineering](https://x.com/karpathy/status/1937902205765607626)** — The discipline of structuring everything an LLM needs to make reliable decisions, as articulated by [Andrej Karpathy](https://x.com/karpathy/status/1937902205765607626) and [Tobi Lütke](https://x.com/tobi/status/1935533422589399127). The agent architecture, worktree isolation, context budget rules, and context rot protocols in this system are context engineering in practice. See also [Context Engineering: 4 Principles for AI Coding CLIs](https://tail-f-thoughts.hashnode.dev/context-engineering-ai-coding-cli) for a practical walkthrough of these principles applied to this workflow.
 - **[The AI-Human Engineering Stack](https://github.com/hjasanchez/agentic-engineering/blob/main/The%20AI-Human%20Engineering%20Stack.pdf)** (Mill & Sanchez, 2026) — A layered model (Prompt, Context, Intent, Judgment, Coherence) that informed the value hierarchy, judgment protocols, and evaluation framework.
 - **[The Complete Guide to Specifying Work for AI](https://github.com/hjasanchez/agentic-engineering/blob/main/The%20Complete%20Guide%20to%20Specifying%20Work%20for%20AI.pdf)** (Mill & Sanchez, 2026) — Practical methods for translating human intent into AI-readable specifications that shaped the Contract-First pattern, Correctness Discovery, and PRD templates.
+- **[From Vibe Coding to Agentic Engineering](https://heavychain.org/blog?article=from-vibe-coding-to-agentic-engineering)** (Jason Vertrees / Heavy Chain Engineering, 2026) — A practitioner's account of building 270K lines in one week with disciplined AI agents. Key ideas adopted: the Architecture Invariant Registry (cross-module contracts with preconditions/postconditions/invariants), the "Modular Success Trap" insight (modules pass in isolation but integration seams break), enforcement via hard-gate hooks rather than verbal instructions, and the Build Candidate concept as a design-phase gate.
 - **Personal experience** — Patterns, anti-patterns, hooks, and safety rules discovered through months of real-world AI-assisted development across multiple production projects.
 
 ## Quick Start
@@ -58,9 +59,15 @@ The core loop. Plan + Review = 80% of effort. Work + Compound = 20%. The bottlen
 │   └── workflow-audit/    # Periodic system self-review
 ├── hooks/             # Safety enforcement scripts
 │   ├── block-dangerous.sh     # Blocks rm -rf, force push, npm
+│   ├── check-test-exists.sh   # TDD gate — blocks edits without test file
+│   ├── check-invariants.sh    # Verifies INVARIANTS.md rules after edits
 │   ├── post-edit-quality.sh   # Auto-formats TS/JS after every edit
 │   ├── end-of-turn-typecheck.sh # Type-checks before session end
-│   └── compound-reminder.sh   # Blocks session end without learning capture
+│   ├── compound-reminder.sh   # Blocks session end without learning capture
+│   └── verify-completion.sh   # Blocks premature completion claims
+├── test-workflow-mods/# Workflow integrity test suite (123 assertions)
+│   ├── run-tests.sh           # Validates entire ~/.claude/ structure
+│   └── testdata/              # Fixture projects for hook behavioral tests
 ├── docs/              # Reference material (loaded on demand, not every session)
 │   ├── evaluation-reference.md
 │   ├── anti-patterns-full.md
@@ -100,9 +107,16 @@ The system uses deterministic hooks — real code that runs before/after every a
 | Hook | Trigger | What It Does |
 |---|---|---|
 | `block-dangerous.sh` | Every Bash command | Blocks `rm -rf /`, force push, npm |
+| `check-test-exists.sh` | Every file edit | TDD gate — blocks production code edits without test file |
+| `check-invariants.sh` | Every file edit | Verifies INVARIANTS.md rules after edits |
 | `post-edit-quality.sh` | Every file edit | Auto-formats TS/JS (Biome or ESLint) |
 | `end-of-turn-typecheck.sh` | Session end | Type-checks TypeScript |
 | `compound-reminder.sh` | Session end | Blocks exit without learning capture |
+| `verify-completion.sh` | Session end | Blocks premature completion without evidence |
+
+### Workflow Integrity Tests
+
+The system includes a self-test suite (`test-workflow-mods/run-tests.sh`) with 123 assertions that validates the entire `~/.claude/` structure: hook existence and executability, settings.json registration and cross-references, CLAUDE.md documentation coverage, agent/skill structure, and evolution infrastructure. Runs automatically as the final step of `/compound` whenever workflow files are modified.
 
 ## Full Documentation
 

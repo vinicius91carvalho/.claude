@@ -212,6 +212,13 @@ Steps 6-8: Cross-project promotion
            └── Write session postmortem
 
 Step 9:    Write completion marker
+
+Step 10:   Workflow Integrity Gate (if ~/.claude/ files modified)
+           Run test-workflow-mods/run-tests.sh (112 assertions)
+           ├── All pass → proceed
+           └── Failures → fix before finalizing
+
+Step 11:   Suggest committing workflow changes (if using git backup)
 ```
 
 ### Quick Fix Micro-Compound

@@ -314,12 +314,30 @@ both obvious failures AND "200 with broken content" failures early.**
    - State whether it was met
    - Cite the specific evidence (exit code, curl output, test result)
    - If evidence is missing: the criterion is NOT met, regardless of what the sprint-executor claimed
-4. If any tasks remain unchecked or criteria unmet:
+4. **Test as the user, not the builder:** If the system has auth/permissions, verify at
+   least one key flow as a non-privileged user (not admin/superuser). Superuser accounts
+   mask permission mismatches, missing role mappings, and integration seam failures.
+5. If any tasks remain unchecked or criteria unmet:
    - Do NOT mark the sprint as complete
    - Either fix the remaining items directly or mark as BLOCKED
-5. Cross-reference sprint-executor's claimed verification results against
+6. Cross-reference sprint-executor's claimed verification results against
    the actual outputs from Step 7 and Step 8 — if they contradict, trust
    YOUR verification, not the executor's claims
+7. **Verify INVARIANTS.md:** If the project has an `INVARIANTS.md`, run all verify commands.
+   If any invariant is violated after the sprint, the sprint is NOT complete — fix the
+   violation before marking done.
+8. **Write completion evidence marker** (required by `verify-completion.sh` Stop hook):
+   ```bash
+   cat > /tmp/.claude-completion-evidence-${CLAUDE_SESSION_ID:-unknown} << 'EOF'
+   plan_reread: true
+   acceptance_criteria_cited: true
+   dev_server_verified: true
+   non_privileged_user_tested: true
+   timestamp: $(date -Iseconds)
+   EOF
+   ```
+   Only write this AFTER all checks above pass. The Stop hook will block the agent
+   from finishing without this marker.
 
 ### Step 9: Update Progress
 

@@ -81,6 +81,44 @@ description: >
    - `files_read_only` can overlap freely — reading is safe
    - If validation fails: restructure batches to make conflicting sprints sequential
 
-6. Tell the user: "PRD saved at [directory-path]/. Sprint specs extracted to `sprints/`. Run `/plan-build-test` to execute, or review and adjust first."
+6. **If PRD+Sprint — Create INVARIANTS.md (MANDATORY):**
 
-7. **Do NOT execute.** This skill produces the plan only.
+   After extracting sprint specs, identify every concept that is defined in one bounded
+   context and consumed by others. Create `INVARIANTS.md` in the PRD directory with
+   machine-verifiable contracts for each cross-cutting concept.
+
+   For each shared concept, define:
+   - **Owner:** Which bounded context defines this concept
+   - **Preconditions:** What consumers must satisfy (caller's obligation)
+   - **Postconditions:** What the owner guarantees (provider's guarantee)
+   - **Invariants:** What must always hold across all contexts
+   - **Verify:** Shell command that exits 0 if invariant holds
+   - **Fix:** How to resolve if violated
+
+   Common concepts to register: permission string formats, entity status vocabularies,
+   error code families, event type definitions, routing identifiers, API contract shapes,
+   shared type definitions.
+
+   **Dependency direction:** If A depends on B, B owns the contract. This prevents
+   consumers from independently inventing expectations about provider behavior.
+
+   Copy the project-level INVARIANTS.md to the project root if one doesn't exist yet.
+
+7. **Tag Build Candidate:**
+
+   After all artifacts are written (spec.md, sprint specs, progress.json, INVARIANTS.md),
+   tag the current state as a Build Candidate — a formal gate declaring "this specification
+   is complete enough to build from."
+
+   ```bash
+   git add docs/tasks/<area>/<category>/<prd-dir>/
+   git commit -m "docs: Build Candidate for <prd-name>"
+   git tag "build-candidate/<prd-name>"
+   ```
+
+   This is analogous to a release candidate, but for the design phase. The tag is the
+   contract: "everything needed to build is specified. Implementation can begin."
+
+8. Tell the user: "PRD saved at [directory-path]/. Sprint specs extracted to `sprints/`. INVARIANTS.md created. Build Candidate tagged. Run `/plan-build-test` to execute, or review and adjust first."
+
+9. **Do NOT execute.** This skill produces the plan only.

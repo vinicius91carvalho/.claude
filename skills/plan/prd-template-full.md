@@ -55,21 +55,34 @@ Define interfaces, types, design tokens, and component APIs that multiple sprint
 - **Data types:** [Shared TypeScript types, schemas, API contracts]
 - **Layout structure:** [Page layout, grid system, breakpoints]
 
-## 10. Open Questions
+## 10. Architecture Invariant Registry
+
+Cross-cutting concepts that are defined in one bounded context and consumed by others.
+Each entry becomes a machine-verifiable contract in INVARIANTS.md.
+
+| Concept | Owner | Format/Values | Verify Command |
+| ------- | ----- | ------------- | -------------- |
+| [Permission strings] | [IAM] | `resource:action` | `grep -rn ... \| diff ...` |
+| [Entity statuses] | [Core domain] | `draft\|active\|archived` | `grep -rn 'status' ...` |
+| [Error codes] | [API layer] | `ERR_MODULE_NNNN` | `grep -rn 'ERR_' ...` |
+
+**Dependency direction:** If A depends on B, B owns the contract.
+
+## 11. Open Questions
 
 - [ ] [Known unknown — who should answer?]
 
-## 11. Uncertainty Policy
+## 12. Uncertainty Policy
 
 When uncertain: [Flag / Guess-and-document / Stop]
 When [X] conflicts with [Y]: prefer [X/Y]
 
-## 12. Verification
+## 13. Verification
 
 - Deterministic: [Tests, linters, type checks]
 - Manual: [What human reviewer should check]
 
-## 13. Sprint Decomposition
+## 14. Sprint Decomposition
 
 Maximum 5 sprints. Each sprint is extracted into its own file under `sprints/` during planning.
 
@@ -115,10 +128,10 @@ Each sprint spec file follows this structure (see sprint-spec-template.md):
 - [ ] [Test command]
 - [ ] [Build command]
 
-## 14. Execution Log
+## 15. Execution Log
 
 [Filled during execution — tracked in progress.json]
 
-## 15. Learnings (filled after all sprints complete)
+## 16. Learnings (filled after all sprints complete)
 
 [Compound step output]

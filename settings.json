@@ -17,6 +17,10 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/post-edit-quality.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/check-invariants.sh"
           }
         ]
       }
@@ -31,6 +35,10 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/compound-reminder.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/verify-completion.sh"
           }
         ]
       }
@@ -46,6 +54,15 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/proot-preflight.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/check-test-exists.sh"
           }
         ]
       }

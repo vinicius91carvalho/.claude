@@ -32,12 +32,19 @@
 │
 ├── hooks/                              # Deterministic enforcement scripts
 │   ├── block-dangerous.sh              # Blocks destructive commands
+│   ├── check-test-exists.sh            # TDD gate — blocks edits without test file
+│   ├── check-invariants.sh             # Verifies INVARIANTS.md rules after edits
 │   ├── post-edit-quality.sh            # Auto-formats code after edits
 │   ├── end-of-turn-typecheck.sh        # Type-checks TypeScript at end of turn
 │   ├── compound-reminder.sh            # Blocks session end without learning capture
+│   ├── verify-completion.sh            # Blocks premature completion claims
 │   ├── proot-preflight.sh              # Environment checks for proot-distro
 │   ├── worktree-preflight.sh           # Git and dependency readiness
 │   └── retry-with-backoff.sh           # Utility for API rate limit handling
+│
+├── test-workflow-mods/                 # Workflow integrity test suite
+│   ├── run-tests.sh                    # 123 assertions validating ~/.claude/ structure
+│   └── testdata/                       # Fixture projects for hook behavioral tests
 │
 ├── docs/                               # Reference material (loaded on demand)
 │   ├── evaluation-reference.md         # Quality evaluation checklists

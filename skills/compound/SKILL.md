@@ -158,7 +158,20 @@ description: >
    touch "/tmp/.claude-compound-done-${CLAUDE_SESSION_ID:-unknown}"
    ```
 
-10. **If using git backup for `~/.claude/`:** suggest committing workflow changes
+10. **Workflow Integrity Gate** — if compound modified ANY workflow files (`~/.claude/` — hooks,
+    skills, agents, settings.json, CLAUDE.md), run the integrity test suite:
+    ```bash
+    bash ~/.claude/test-workflow-mods/run-tests.sh
+    ```
+    - If all tests pass: proceed to step 11
+    - If any tests fail: fix the failures before continuing. The test suite validates that
+      all hooks exist and are executable, settings.json registrations are correct and
+      cross-referenced, CLAUDE.md documents all key concepts, agent/skill files have correct
+      structure, and evolution infrastructure is intact.
+    - This step is MANDATORY when workflow files were modified. Skip ONLY if no `~/.claude/`
+      files were touched during this compound cycle.
+
+11. **If using git backup for `~/.claude/`:** suggest committing workflow changes
 
 ## Quick Fix Micro-Compound
 

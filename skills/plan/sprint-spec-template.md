@@ -32,6 +32,11 @@
 - [Interface/type name from PRD Section 9]
 - [Design token set]
 
+### Consumed Invariants (from INVARIANTS.md)
+
+- [Invariant name] — this sprint must satisfy [precondition/postcondition]
+- [Invariant name] — verify command: `[command]`
+
 ## Tasks
 
 - [ ] [Task 1 — atomic, verifiable]
