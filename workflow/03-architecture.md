@@ -27,7 +27,9 @@
 │   │   └── SKILL.md
 │   ├── compound/                       # Post-task learning capture
 │   │   └── SKILL.md
-│   └── workflow-audit/                 # Periodic system self-review
+│   ├── workflow-audit/                 # Periodic system self-review
+│   │   └── SKILL.md
+│   └── update-docs/                   # Analyze code and update project docs
 │       └── SKILL.md
 │
 ├── hooks/                              # Deterministic enforcement scripts

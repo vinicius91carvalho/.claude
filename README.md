@@ -56,7 +56,8 @@ The core loop. Plan + Review = 80% of effort. Work + Compound = 20%. The bottlen
 │   ├── plan-build-test/   # Local pipeline: discover → plan → execute → verify
 │   ├── ship-test-ensure/  # Deploy: branch → PR → staging → E2E → production
 │   ├── compound/          # Post-task learning capture
-│   └── workflow-audit/    # Periodic system self-review
+│   ├── workflow-audit/    # Periodic system self-review
+│   └── update-docs/       # Analyze code and update project documentation
 ├── hooks/             # Safety enforcement scripts
 │   ├── block-dangerous.sh     # Blocks rm -rf, force push, npm
 │   ├── check-test-exists.sh   # TDD gate — blocks edits without test file
@@ -83,7 +84,7 @@ The core loop. Plan + Review = 80% of effort. Work + Compound = 20%. The bottlen
     └── workflow-changelog.md   # System evolution history
 ```
 
-## The Five Skills
+## The Six Skills
 
 | Skill | What It Does | When to Use |
 |---|---|---|
@@ -92,6 +93,7 @@ The core loop. Plan + Review = 80% of effort. Work + Compound = 20%. The bottlen
 | `/ship-test-ensure` | Branch, PR, staging E2E, production deploy, Lighthouse (optional) | "Ship what I've built" |
 | `/compound` | Captures learnings, updates error registry, evolves system | Auto-invoked after task completion |
 | `/workflow-audit` | Reviews model performance, error patterns, rule staleness | Monthly or after 10+ sessions |
+| `/update-docs` | Analyzes codebase and updates README/docs to match current code | "Update docs", "sync readme", or when push is blocked by stale docs |
 
 **Autonomous pipeline:** `/plan` → review PRD → `/plan-build-test` (autonomous) → manual test → `/ship-test-ensure` (autonomous through staging, confirms before production).
 

@@ -15,8 +15,11 @@ Skills are auto-invocable workflows that live in `~/.claude/skills/`. Each skill
 │       │               needed, execute with agent teams, verify         │
 │       │               locally. Runs autonomously by default.           │
 │       ▼                                                                │
+│    /update-docs       Analyze codebase and sync documentation.         │
+│       │               Auto-invoked when push blocked by stale docs.    │
+│       ▼                                                                │
 │    /ship-test-ensure  CI/CD pipeline: branch, PR, merge, staging      │
-│       │               E2E, production deploy, Lighthouse 100/100.      │
+│       │               E2E, production deploy, Lighthouse (optional).   │
 │       │               Autonomous through staging; confirms before      │
 │       │               production.                                      │
 │       ▼                                                                │
@@ -265,6 +268,44 @@ Step 7: Generate audit report (health score 1-10)
 
 Step 8: Apply recommendations (with user approval only)
 ```
+
+---
+
+## /update-docs — Documentation Sync
+
+Analyzes the codebase and updates project documentation to reflect the current state of the code. Works on any project — not just the workflow repo.
+
+### Phases
+
+```
+Step 1: Detect Documentation Targets
+        ├── Find existing docs (README.md, docs/, CHANGELOG.md, etc.)
+        ├── Analyze codebase structure (Explore agent, haiku)
+        └── Detect what changed since docs were last updated (git diff)
+
+Step 2: Diff Analysis — What's Stale?
+        ├── Compare code state vs. doc content
+        ├── Identify: missing, stale, inaccurate, current
+        └── Report audit to user before making changes
+
+Step 3: Update Documentation
+        ├── Delete stale/incorrect content
+        ├── Update partially correct sections
+        ├── Add new sections for undocumented components
+        └── Follows project-type guidelines (web app, library, workflow, CLI)
+
+Step 4: Verify
+        ├── Check internal links (broken markdown references)
+        ├── Check command accuracy (scripts exist?)
+        └── Check path accuracy (referenced files exist?)
+
+Step 5: Report
+        Summary of changes + verification results
+```
+
+**Key principles:** Concise over verbose. Accurate over complete. Delete wrong docs rather than adding more. Examples over descriptions.
+
+**Trigger:** "update docs", "sync readme", "docs are stale", or auto-invoked when `check-docs-updated.sh` blocks a push.
 
 ---
 
