@@ -1,6 +1,6 @@
 {
   "_schema": "Tracks model success rates by task type. Updated by /compound after each session. Used to evolve the Model Assignment Matrix.",
-  "_updated": "2026-03-14T16:13:57.026237",
+  "_updated": "2026-03-16T20:33:31.007606",
   "_adaptation_rules": {
     "upgrade_threshold": 0.7,
     "downgrade_threshold": 0.9,
@@ -42,8 +42,8 @@
         "required_upgrade": 0
       },
       "verification": {
-        "attempts": 0,
-        "first_try_success": 0,
+        "attempts": 1,
+        "first_try_success": 1,
         "required_upgrade": 0
       },
       "orchestration": {
@@ -66,6 +66,16 @@
       "merge_conflict": {
         "attempts": 0,
         "first_try_success": 0,
+        "required_upgrade": 0
+      },
+      "bug_fix": {
+        "attempts": 1,
+        "first_try_success": 1,
+        "required_upgrade": 0
+      },
+      "orchestration": {
+        "attempts": 1,
+        "first_try_success": 1,
         "required_upgrade": 0
       }
     }

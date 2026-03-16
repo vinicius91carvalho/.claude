@@ -32,7 +32,7 @@
     "last_seen": "2026-03-14",
     "occurrences": 1
   },
-  "_updated": "2026-03-14T00:00:00Z",
+  "_updated": "2026-03-16T20:33:26.617164",
   "entries": [
     {
       "pattern": "Worktree merge overwrites previous sprint changes",
@@ -100,6 +100,41 @@
       ],
       "first_seen": "2026-03-14",
       "last_seen": "2026-03-14",
+      "occurrences": 1
+    },
+    {
+      "pattern": "MISSING_MESSAGE: Could not resolve .* in messages for locale",
+      "category": "LOGIC",
+      "root_cause": "Component references i18n keys that don't exist in locale JSON files. Build/lint/types don't catch this \u2014 only visible as runtime console errors.",
+      "fix": "Add missing keys to ALL locale files. Run Playwright console error audit to detect.",
+      "auto_preventable": true,
+      "prevention": "A pre-commit hook or CI step that validates all t() keys exist in all locale JSON files. Or a Playwright console audit in CI.",
+      "approaches_that_failed": [],
+      "projects_seen": [
+        "simuser-ai"
+      ],
+      "first_seen": "2026-03-16",
+      "last_seen": "2026-03-16",
+      "occurrences": 1
+    },
+    {
+      "pattern": "Refused to execute script.*MIME type.*text/plain.*not executable",
+      "category": "ENV",
+      "root_cause": "Stale .next cache from previous compilation. Page chunk files exist as empty directories instead of JS files. Dev server serves 404 or wrong MIME type.",
+      "fix": "rm -rf apps/website/.next && restart dev server",
+      "auto_preventable": false,
+      "prevention": "Could add .next cache clear to dev server start script",
+      "approaches_that_failed": [
+        {
+          "approach": "Investigating code for MIME type configuration issues",
+          "why_bad": "Not a code issue \u2014 purely stale cache"
+        }
+      ],
+      "projects_seen": [
+        "simuser-ai"
+      ],
+      "first_seen": "2026-03-16",
+      "last_seen": "2026-03-16",
       "occurrences": 1
     }
   ]

@@ -176,6 +176,14 @@ Map each sprint ID to its branch name (returned in the agent result).
 
 **Merge order:** Lowest sprint number first.
 
+**Pre-merge overwrite check:** Before each merge, run the worktree merge verification
+script to detect files that may be silently overwritten:
+```bash
+# Collect SHAs of previously merged sprints in this batch
+bash ~/.claude/hooks/verify-worktree-merge.sh <worktree-branch> HEAD <prev-sprint-shas...>
+```
+If the script reports potential overwrites, note the files for manual verification after merge.
+
 For each worktree branch:
 ```bash
 git merge --no-ff <worktree-branch> -m "merge: Sprint N — <title>"

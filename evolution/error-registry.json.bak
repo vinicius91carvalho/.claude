@@ -1,6 +1,17 @@
 {
   "_schema": "Cross-project error registry. Maps error patterns to root causes, fixes, and projects where they occurred. Entries may include approaches_that_failed for negative learning (approaches tried and why they were bad).",
-  "_categories": ["ENV", "LOGIC", "CONFIG", "DEPENDENCY", "SECURITY", "TEST", "DEPLOY", "PROOT", "MERGE", "PERFORMANCE"],
+  "_categories": [
+    "ENV",
+    "LOGIC",
+    "CONFIG",
+    "DEPENDENCY",
+    "SECURITY",
+    "TEST",
+    "DEPLOY",
+    "PROOT",
+    "MERGE",
+    "PERFORMANCE"
+  ],
   "_entry_template": {
     "pattern": "error message or symptom regex",
     "category": "ENV|LOGIC|CONFIG|...",
@@ -9,13 +20,87 @@
     "auto_preventable": false,
     "prevention": "hook/rule that prevents it (if auto_preventable)",
     "approaches_that_failed": [
-      { "approach": "what was tried", "why_bad": "why it didn't work or made things worse" }
+      {
+        "approach": "what was tried",
+        "why_bad": "why it didn't work or made things worse"
+      }
     ],
-    "projects_seen": ["project-name"],
+    "projects_seen": [
+      "project-name"
+    ],
     "first_seen": "2026-03-14",
     "last_seen": "2026-03-14",
     "occurrences": 1
   },
   "_updated": "2026-03-14T00:00:00Z",
-  "entries": []
+  "entries": [
+    {
+      "pattern": "Worktree merge overwrites previous sprint changes",
+      "category": "MERGE",
+      "root_cause": "Worktrees branch from HEAD at creation time; later sprint merges aren't visible to worktrees created earlier. Copying worktree files back to main overwrites changes from already-merged sprints.",
+      "fix": "After each worktree merge, verify files modified by both the current and previous sprints. Re-apply earlier sprint changes (removed imports, deleted sections, CTA replacements) before building.",
+      "auto_preventable": false,
+      "prevention": "Could be prevented by a post-merge verification script that diffs against expected state, but manual reconciliation is simpler for now",
+      "approaches_that_failed": [
+        {
+          "approach": "Direct file copy from worktree without verification",
+          "why_bad": "Silently reverts Sprint 1/2 changes in shared files like home-page.tsx and product-page.tsx"
+        }
+      ],
+      "projects_seen": [
+        "simuser-ai"
+      ],
+      "first_seen": "2026-03-14",
+      "last_seen": "2026-03-14",
+      "occurrences": 3
+    },
+    {
+      "pattern": "Large JSON i18n files cause agent context overflow",
+      "category": "LOGIC",
+      "root_cause": "i18n JSON files (500+ lines) fill agent context when read fully. Edit tool string matching is fragile on large JSON. Agents hit context limits mid-edit and produce incomplete output.",
+      "fix": "Use Python json module via Bash for reliable key insertion/removal in large JSON files. Read file, parse, modify dict, write back.",
+      "auto_preventable": false,
+      "prevention": "Could add a pre-check that measures file size and routes to Python-based editing for files > 300 lines",
+      "approaches_that_failed": [
+        {
+          "approach": "Edit tool with string matching on large JSON",
+          "why_bad": "Partial replacements leave malformed JSON; context limits cause agent to stop mid-edit"
+        },
+        {
+          "approach": "Multiple agent resumes on same JSON file",
+          "why_bad": "Each resume adds context; agent hits limits faster on retry"
+        }
+      ],
+      "projects_seen": [
+        "simuser-ai"
+      ],
+      "first_seen": "2026-03-14",
+      "last_seen": "2026-03-14",
+      "occurrences": 4
+    },
+    {
+      "pattern": "serve npm package fails in PRoot-Distro (uv_interface_addresses)",
+      "category": "PROOT",
+      "root_cause": "The 'serve' package calls os.networkInterfaces() which triggers uv_interface_addresses syscall that fails in PRoot-Distro ARM64",
+      "fix": "Use python3 -m http.server for static file serving in PRoot environments",
+      "auto_preventable": true,
+      "prevention": "PRoot detection in proot-preflight.sh could set an alias for serve \u2192 python3 http.server",
+      "approaches_that_failed": [
+        {
+          "approach": "npx serve",
+          "why_bad": "SystemError: uv_interface_addresses returned Unknown system error 13"
+        },
+        {
+          "approach": "pnpm dlx serve",
+          "why_bad": "Same syscall failure"
+        }
+      ],
+      "projects_seen": [
+        "simuser-ai"
+      ],
+      "first_seen": "2026-03-14",
+      "last_seen": "2026-03-14",
+      "occurrences": 1
+    }
+  ]
 }
