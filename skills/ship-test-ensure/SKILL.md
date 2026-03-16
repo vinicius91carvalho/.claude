@@ -151,6 +151,7 @@ Before committing, ensure local checks pass. Spawn a **sonnet agent**:
 > 3. `{typecheck_command}` (type checking)
 > 4. `{build_command}` (build)
 > 5. `{test_command}` (unit tests)
+> 6. `bash ~/.claude/hooks/validate-i18n-keys.sh .` (i18n key validation — auto-skips if project has no i18n)
 >
 > If any step fails, report: which step, the error, and affected files.
 > Return: pass/fail per step, error details if any.
@@ -404,7 +405,14 @@ Update pipeline state:
 
 ---
 
-## Phase 5: PageSpeed Insights & Lighthouse Audit
+## Phase 5: PageSpeed Insights & Lighthouse Audit (Optional)
+
+**This phase is optional.** Check `pages_to_audit` in Execution Config:
+- If `pages_to_audit` is defined and non-empty → run this phase
+- If `pages_to_audit` is missing or empty → skip entirely with a note in the final report:
+  "Phase 5 skipped — no `pages_to_audit` configured in Execution Config"
+
+This allows projects to opt-in to Lighthouse auditing without blocking the pipeline.
 
 ### Step 5.0: Environment Detection
 
@@ -424,6 +432,11 @@ fi
 
 **If NOT proot:** Use PageSpeed Insights API (preferred for production accuracy).
 Local Lighthouse CLI is optional — PSI tests the actual deployed site which is more accurate.
+
+**API key handling:** If `PSI_API_KEY` env var or `psi_api_key` Execution Config key is set,
+append `&key=KEY` to PSI API requests. This removes daily quota limits. Without a key, the
+API has a low daily quota and may return 429 errors — in that case, mark as
+`BLOCKED: PSI API quota exceeded` and continue (do not fail the pipeline).
 
 ### Step 5.1: Run Google PageSpeed Insights API
 

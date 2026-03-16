@@ -2,6 +2,27 @@
 
 Track every change to CLAUDE.md, skills, agents, and hooks with date, what changed, why, and source.
 
+## 2026-03-16 — Workflow Audit Fixes (5 recommendations)
+
+### Changes
+- **Created:** `~/.claude/hooks/validate-i18n-keys.sh` — Generic i18n key validation script. Auto-detects next-intl/react-intl/i18next projects, cross-validates all locale JSON files have matching keys. Exits 0 for non-i18n projects.
+- **Created:** `~/.claude/hooks/verify-worktree-merge.sh` — Post-merge verification for worktree branches. Detects files modified by both current and previous sprints to prevent silent overwrites.
+- **Modified:** `ship-test-ensure/SKILL.md` — Phase 5 (PageSpeed) now optional: only runs if `pages_to_audit` is configured. Added API key support (`PSI_API_KEY` env var). 429 errors no longer block the pipeline. Added i18n validation to Phase 0.3 verification gate.
+- **Modified:** `orchestrator.md` — Step 6.2 now runs `verify-worktree-merge.sh` before each merge to detect potential overwrites.
+- **Modified:** `apps/website/package.json` — Dev script now clears `.next` cache on start (`rm -rf .next && next dev`).
+
+### Why
+- P1: Missing i18n keys caused 17 runtime errors not caught by build/lint/types (error-registry: MISSING_MESSAGE pattern)
+- P1: Worktree merge overwrite is the highest-recurrence error (3x in one session, error-registry)
+- P2: PSI API quota (429) blocked Phase 5 unnecessarily — should be optional since not all projects need Lighthouse
+- P2: Stale .next cache caused MIME type errors requiring manual investigation (error-registry)
+- P3: Haiku underutilization noted but not actioned (needs conscious delegation in future sessions)
+
+### Source
+- /workflow-audit after 2 sessions, 2026-03-16
+
+---
+
 ## 2026-03-14 — SimUser AI Refinement Build Learnings
 
 ### Changes
