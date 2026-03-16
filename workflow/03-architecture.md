@@ -38,6 +38,9 @@
 │   ├── end-of-turn-typecheck.sh        # Type-checks TypeScript at end of turn
 │   ├── compound-reminder.sh            # Blocks session end without learning capture
 │   ├── verify-completion.sh            # Blocks premature completion claims
+│   ├── validate-i18n-keys.sh           # Cross-validates i18n keys across locales
+│   ├── verify-worktree-merge.sh        # Detects silent overwrites in worktree merges
+│   ├── check-docs-updated.sh           # Blocks push if workflow changed without docs
 │   ├── proot-preflight.sh              # Environment checks for proot-distro
 │   ├── worktree-preflight.sh           # Git and dependency readiness
 │   └── retry-with-backoff.sh           # Utility for API rate limit handling

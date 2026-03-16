@@ -64,7 +64,10 @@ The core loop. Plan + Review = 80% of effort. Work + Compound = 20%. The bottlen
 │   ├── post-edit-quality.sh   # Auto-formats TS/JS after every edit
 │   ├── end-of-turn-typecheck.sh # Type-checks before session end
 │   ├── compound-reminder.sh   # Blocks session end without learning capture
-│   └── verify-completion.sh   # Blocks premature completion claims
+│   ├── verify-completion.sh   # Blocks premature completion claims
+│   ├── validate-i18n-keys.sh  # Cross-validates i18n keys across locales
+│   ├── verify-worktree-merge.sh # Detects silent overwrites in worktree merges
+│   └── check-docs-updated.sh # Blocks push if workflow changed without doc updates
 ├── test-workflow-mods/# Workflow integrity test suite (123 assertions)
 │   ├── run-tests.sh           # Validates entire ~/.claude/ structure
 │   └── testdata/              # Fixture projects for hook behavioral tests
@@ -86,7 +89,7 @@ The core loop. Plan + Review = 80% of effort. Work + Compound = 20%. The bottlen
 |---|---|---|
 | `/plan` | Generates PRD only | "Just plan, don't build yet" |
 | `/plan-build-test` | Plans, executes with agent teams, verifies locally | "Build this feature / fix this bug" |
-| `/ship-test-ensure` | Branch, PR, staging E2E, production deploy, Lighthouse | "Ship what I've built" |
+| `/ship-test-ensure` | Branch, PR, staging E2E, production deploy, Lighthouse (optional) | "Ship what I've built" |
 | `/compound` | Captures learnings, updates error registry, evolves system | Auto-invoked after task completion |
 | `/workflow-audit` | Reviews model performance, error patterns, rule staleness | Monthly or after 10+ sessions |
 
@@ -113,6 +116,9 @@ The system uses deterministic hooks — real code that runs before/after every a
 | `end-of-turn-typecheck.sh` | Session end | Type-checks TypeScript |
 | `compound-reminder.sh` | Session end | Blocks exit without learning capture |
 | `verify-completion.sh` | Session end | Blocks premature completion without evidence |
+| `validate-i18n-keys.sh` | Pre-commit (via ship-test-ensure) | Cross-validates all i18n t() keys exist in all locale files |
+| `verify-worktree-merge.sh` | Post-merge (via orchestrator) | Detects files silently overwritten by worktree merges |
+| `check-docs-updated.sh` | Every `git push` (PreToolUse) | Blocks push if hooks/skills/agents changed without doc updates |
 
 ### Workflow Integrity Tests
 

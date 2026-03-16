@@ -162,11 +162,13 @@ Phase 4: Production Deploy
          ├── Trigger production deploy commands
          └── Monitor with same pattern as Phase 2
 
-Phase 5: PageSpeed & Lighthouse
+Phase 5: PageSpeed & Lighthouse (Optional — requires pages_to_audit config)
+         ├── Skip entirely if no pages_to_audit configured
          ├── Test all configured pages (mobile + desktop)
          ├── Classify: code-fixable / infrastructure / third-party
          ├── Spawn fix agents
-         └── Max 5 iterations; plateau → accept current scores
+         ├── PSI API key supported (PSI_API_KEY env var)
+         └── Max 5 iterations; plateau or 429 quota → accept current scores
 
 Phase 6: Final Report & Compound
          ├── Final Lighthouse score table

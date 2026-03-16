@@ -35,6 +35,7 @@ While `CLAUDE.md` provides guidelines the model "should" follow, `settings.json`
 │  │  PreToolUse      │ ◄── Runs BEFORE every Bash command            │
 │  │  (Bash)          │     block-dangerous.sh: hard/soft blocks      │
 │  │                  │     proot-preflight.sh: environment warnings   │
+│  │                  │     check-docs-updated.sh: doc sync on push   │
 │  └──────────────────┘                                               │
 │                                                                     │
 │  ┌──────────────────┐                                               │
@@ -83,6 +84,9 @@ While `CLAUDE.md` provides guidelines the model "should" follow, `settings.json`
 | `end-of-turn-typecheck.sh` | Stop | End of turn | Type-check TypeScript | Yes (exit 2 on type errors) |
 | `compound-reminder.sh` | Stop | End of turn | Ensure /compound ran | Yes (exit 2 if skipped) |
 | `verify-completion.sh` | Stop | End of turn | Block premature completion | Yes (exit 2 without evidence) |
+| `validate-i18n-keys.sh` | (ship-test-ensure) | Pre-commit | Cross-validate i18n keys across locales | No (informational) |
+| `verify-worktree-merge.sh` | (orchestrator) | Post-merge | Detect silent overwrites from worktree merges | No (informational) |
+| `check-docs-updated.sh` | PreToolUse(Bash) | `git push` | Block push if workflow files changed without doc updates | Yes (exit 2 if stale) |
 | `worktree-preflight.sh` | (orchestrator) | Sprint start | Git/env readiness | N/A (utility) |
 | `retry-with-backoff.sh` | (utility) | API calls | Exponential backoff | N/A (utility) |
 
@@ -352,6 +356,91 @@ Evidence marker file exists?
 ```
 
 **Why this matters:** This is the enforcement mechanism for the Anti-Premature Completion Protocol. Without it, the protocol is just instructions the model can ignore.
+
+## PreToolUse: check-docs-updated.sh
+
+Runs **before** every Bash command, but only activates on `git push`. Checks if workflow files (hooks, skills, agents, settings.json) were changed without corresponding documentation updates.
+
+```
+git push command detected
+    │
+    ▼
+In ~/.claude repo? ─── No ──► skip
+    │
+   Yes
+    │
+    ▼
+Workflow files changed vs main?
+(hooks/*.sh, skills/*/SKILL.md, agents/*.md, settings.json)
+    │
+    ├─ No ──► exit 0
+    │
+    └─ Yes
+        │
+        ▼
+    Docs also changed? (README.md or workflow/*)
+        │
+        ├─ Yes ──► exit 0
+        └─ No ──► BLOCK (exit 2)
+             "Workflow files changed but no documentation updated.
+              Update README.md and relevant workflow/ docs."
+```
+
+**Why this matters:** Workflow changes that aren't reflected in docs create drift between what the system does and what the docs say. This hook enforces documentation-as-code for the workflow repo itself.
+
+## Utility: validate-i18n-keys.sh
+
+Called by `/ship-test-ensure` Phase 0.3 before committing. Auto-detects whether the project uses i18n (next-intl, react-intl, i18next) and exits 0 silently if not. For i18n projects, it cross-validates that all `t()` keys referenced in source code exist in all locale JSON files.
+
+```
+Project being committed
+    │
+    ▼
+Has i18n dependency? ─── No ──► exit 0 (skip)
+    │
+   Yes
+    │
+    ▼
+Find all locale JSON files
+    │
+    ▼
+Extract all t() keys from source
+    │
+    ▼
+Cross-validate keys exist in ALL locales
+    │
+    ├─ All present ──► exit 0
+    └─ Missing keys ──► exit 1, report missing keys per locale
+```
+
+**Why this matters:** Build, lint, and type-check do NOT catch missing i18n keys — they only appear as runtime console errors. This hook catches them before they ship.
+
+## Utility: verify-worktree-merge.sh
+
+Called by the orchestrator (Step 6.2) before each worktree branch merge. Detects files that were modified by both the current worktree branch and previously merged sprint branches, which would be silently overwritten.
+
+```
+Worktree branch about to merge
+    │
+    ▼
+Previous sprint SHAs provided? ─── No ──► exit 0 (skip)
+    │
+   Yes
+    │
+    ▼
+Get files modified by worktree branch
+    │
+    ▼
+Get files modified by each previous sprint
+    │
+    ▼
+Find overlap (files touched by both)
+    │
+    ├─ No overlap ──► exit 0
+    └─ Overlap found ──► exit 1, report files for manual verification
+```
+
+**Why this matters:** Worktrees branch from HEAD at creation time. Later sprint merges aren't visible to worktrees created earlier. Without this check, merging a worktree silently reverts changes from already-merged sprints in shared files.
 
 ## Workflow Integrity Tests
 
