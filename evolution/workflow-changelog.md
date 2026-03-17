@@ -2,6 +2,23 @@
 
 Track every change to CLAUDE.md, skills, agents, and hooks with date, what changed, why, and source.
 
+## 2026-03-17 — Workflow Audit (4 recommendations)
+
+### Changes
+- **Modified:** `ship-test-ensure/SKILL.md` — Step 1.3 now STOPS and asks user before merging PRs. Offers two options: "I'll merge on GitHub" or "Auto-merge here". Same pattern applied to rollback PR in Phase 6.3. `gh pr merge` is preserved as a tool but only runs with explicit user approval.
+- **Updated:** `error-registry.json` — Added 2 new CSS error patterns: backdrop-filter containing block (breaks fixed-position children), flexbox min-height:auto SVG overflow.
+- **Updated:** `feedback_deploy_workflow.md` — Corrected from "NEVER merge" to "ALWAYS ask before merging" — user wants control, not removal of the capability.
+
+### Why
+- P0: Agent auto-merged PR and manipulated main branch without asking user — caused diverged branches, stale PRs, and user alarm. Root cause: skill instructed `gh pr merge` unconditionally.
+- P1: Two CSS patterns discovered during mobile bug fixes are common gotchas worth capturing for instant recognition in future sessions.
+- P2: Haiku has 0 data points — noted for conscious delegation in future sessions (no code change needed).
+
+### Source
+- /workflow-audit after 3 sessions, 2026-03-17
+
+---
+
 ## 2026-03-16 — Workflow Audit Fixes (5 recommendations)
 
 ### Changes

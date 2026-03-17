@@ -136,6 +136,37 @@
       "first_seen": "2026-03-16",
       "last_seen": "2026-03-16",
       "occurrences": 1
+    },
+    {
+      "pattern": "backdrop-filter on parent creates containing block for position:fixed children",
+      "category": "LOGIC",
+      "root_cause": "CSS spec: backdrop-filter (and transform, perspective, filter) on a parent element creates a new containing block for position:fixed descendants. Fixed children are positioned relative to the parent instead of the viewport, breaking overlays/drawers inside headers with backdrop-blur.",
+      "fix": "Move position:fixed overlays (drawers, backdrops, modals) OUTSIDE the parent that has backdrop-filter. Use a React Fragment to render them as siblings.",
+      "auto_preventable": false,
+      "prevention": "Knowledge pattern — recognize when fixed-position elements are nested inside backdrop-filter parents",
+      "approaches_that_failed": [
+        {
+          "approach": "Adjusting z-index on the fixed children",
+          "why_bad": "z-index is relative to the containing block — can't escape the parent's stacking context"
+        }
+      ],
+      "projects_seen": ["simuser-ai"],
+      "first_seen": "2026-03-17",
+      "last_seen": "2026-03-17",
+      "occurrences": 1
+    },
+    {
+      "pattern": "SVG overflows flex container on mobile — flexbox min-height:auto",
+      "category": "LOGIC",
+      "root_cause": "Flex items have min-height:auto by default, preventing them from shrinking below content intrinsic size. SVG with viewBox calculates intrinsic height from aspect ratio, expanding the flex-1 wrapper beyond allocated space.",
+      "fix": "Add min-h-0 (min-height: 0) to the flex-1 wrapper containing the SVG. This allows the flex item to shrink and the SVG scales down via preserveAspectRatio.",
+      "auto_preventable": false,
+      "prevention": "Knowledge pattern — when using SVG with viewBox inside flex-1 containers, always add min-h-0",
+      "approaches_that_failed": [],
+      "projects_seen": ["simuser-ai"],
+      "first_seen": "2026-03-17",
+      "last_seen": "2026-03-17",
+      "occurrences": 1
     }
   ]
 }

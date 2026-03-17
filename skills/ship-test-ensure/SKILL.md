@@ -224,7 +224,15 @@ EOF
 )"
 ```
 
-Wait for CI checks to pass on the PR, then merge:
+**STOP and ask the user** how they want to merge:
+
+> **PR created:** [PR_URL]
+>
+> How would you like to merge?
+> - **I'll merge on GitHub** — I'll wait and follow the CI/CD deploy
+> - **Auto-merge here** — I'll run `gh pr merge --squash --delete-branch`
+
+If the user chooses auto-merge:
 
 ```bash
 # Wait for CI checks
@@ -233,6 +241,8 @@ gh pr checks [PR_NUMBER] --repo {github_repo} --watch
 # Merge via CI/CD (squash merge keeps history clean)
 gh pr merge [PR_NUMBER] --repo {github_repo} --squash --delete-branch
 ```
+
+If the user merges on GitHub: wait for confirmation, then `git checkout main && git pull origin main` and continue to Phase 2.
 
 If CI checks fail on the PR: diagnose, fix, push to the same branch, wait for re-run. Max 3 cycles.
 
@@ -632,7 +642,8 @@ a destructive action that requires human judgment.
    git push -u origin HEAD
    gh pr create --repo {github_repo} --title "revert: rollback to pre-deploy state" \
      --body "Automated rollback via /ship-test-ensure. Reverts all commits since ${PRE_DEPLOY_SHA}."
-   gh pr merge --squash --delete-branch --repo {github_repo}
+   # Ask user: merge here or on GitHub? (same pattern as Step 1.3)
+   # If user approves: gh pr merge --squash --delete-branch --repo {github_repo}
    # Follow deploy to confirm rollback succeeded
    ```
 
