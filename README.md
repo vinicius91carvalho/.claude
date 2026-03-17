@@ -58,12 +58,14 @@ The core loop. Plan + Review = 80% of effort. Work + Compound = 20%. The bottlen
 │   ├── compound/          # Post-task learning capture
 │   ├── workflow-audit/    # Periodic system self-review
 │   └── update-docs/       # Analyze code and update project documentation
-├── hooks/             # Safety enforcement scripts
-│   ├── block-dangerous.sh     # Blocks rm -rf, force push, npm
-│   ├── check-test-exists.sh   # TDD gate — blocks edits without test file
+├── hooks/             # Safety enforcement scripts (language-universal)
+│   ├── lib/
+│   │   └── detect-project.sh   # Shared language/project detection (16 languages)
+│   ├── block-dangerous.sh     # Blocks rm -rf, force push, project-aware pkg mgr
+│   ├── check-test-exists.sh   # TDD gate — blocks edits without test file (all langs)
 │   ├── check-invariants.sh    # Verifies INVARIANTS.md rules after edits
-│   ├── post-edit-quality.sh   # Auto-formats TS/JS after every edit
-│   ├── end-of-turn-typecheck.sh # Type-checks before session end
+│   ├── post-edit-quality.sh   # Auto-formats code after every edit (all langs)
+│   ├── end-of-turn-typecheck.sh # Static type checking (all langs)
 │   ├── compound-reminder.sh   # Blocks session end without learning capture
 │   ├── verify-completion.sh   # Blocks premature completion claims
 │   ├── validate-i18n-keys.sh  # Cross-validates i18n keys across locales
@@ -73,6 +75,7 @@ The core loop. Plan + Review = 80% of effort. Work + Compound = 20%. The bottlen
 │   ├── run-tests.sh           # Validates entire ~/.claude/ structure
 │   └── testdata/              # Fixture projects for hook behavioral tests
 ├── docs/              # Reference material (loaded on demand, not every session)
+│   ├── universal-workflow-guide.md  # How to use/extend for any language
 │   ├── evaluation-reference.md
 │   ├── anti-patterns-full.md
 │   ├── verification-gates.md
@@ -111,16 +114,22 @@ The system uses deterministic hooks — real code that runs before/after every a
 
 | Hook | Trigger | What It Does |
 |---|---|---|
-| `block-dangerous.sh` | Every Bash command | Blocks `rm -rf /`, force push, npm |
-| `check-test-exists.sh` | Every file edit | TDD gate — blocks production code edits without test file |
+| `block-dangerous.sh` | Every Bash command | Blocks `rm -rf /`, force push; project-aware package manager enforcement |
+| `check-test-exists.sh` | Every file edit | TDD gate — blocks production code edits without test file (16 languages) |
 | `check-invariants.sh` | Every file edit | Verifies INVARIANTS.md rules after edits |
-| `post-edit-quality.sh` | Every file edit | Auto-formats TS/JS (Biome or ESLint) |
-| `end-of-turn-typecheck.sh` | Session end | Type-checks TypeScript |
+| `post-edit-quality.sh` | Every file edit | Auto-formats code using detected formatter (Biome, ruff, rustfmt, gofmt, etc.) |
+| `end-of-turn-typecheck.sh` | Session end | Static type checking (tsc, cargo check, go vet, mypy, pyright, etc.) |
 | `compound-reminder.sh` | Session end | Blocks exit without learning capture |
 | `verify-completion.sh` | Session end | Blocks premature completion without evidence |
 | `validate-i18n-keys.sh` | Pre-commit (via ship-test-ensure) | Cross-validates all i18n t() keys exist in all locale files |
 | `verify-worktree-merge.sh` | Post-merge (via orchestrator) | Detects files silently overwritten by worktree merges |
 | `check-docs-updated.sh` | Every `git push` (PreToolUse) | Blocks push if hooks/skills/agents changed without doc updates |
+
+All hooks auto-detect the project's language(s) via `hooks/lib/detect-project.sh`. Adding support for a new language means updating one file — see [Universal Workflow Guide](docs/universal-workflow-guide.md).
+
+#### Supported Languages
+
+TypeScript, JavaScript, Python, Go, Rust, Ruby, Java, Kotlin, Elixir, Swift, Dart, C#, Scala, C/C++, Haskell, and Zig. Each language gets: TDD enforcement with idiomatic test patterns, auto-formatting with the project's configured tools, end-of-turn type/static checking, and language-aware dependency management in worktree preflight.
 
 ### Workflow Integrity Tests
 

@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# PostToolUse(Write|Edit) hook: Auto-format code after edits.
+#
+# Language-universal — auto-detects the file's language and runs the
+# appropriate formatter/linter. Supports all major languages out of the box.
+#
+# To add a new language: update detect_formatter() in lib/detect-project.sh.
+#
+# Exit codes:
+#   0 — formatted successfully (or skipped)
+#   2 — formatter found unfixable errors
+
 # Check for jq — exit silently if missing (auto-formatting is non-critical)
 if ! command -v jq &>/dev/null; then
   exit 0
@@ -17,20 +28,18 @@ if [ -z "$FILE_PATH" ]; then
   exit 0
 fi
 
-# Skip non-TS/JS files
-case "$FILE_PATH" in
-  *.ts|*.tsx|*.js|*.jsx) ;;
-  *) exit 0 ;;
-esac
+# Source shared detection library
+source ~/.claude/hooks/lib/detect-project.sh
 
-# Skip excluded directories (generated/vendor/build output)
-case "$FILE_PATH" in
-  */node_modules/*|*/dist/*|*/build/*|*/.next/*|*/coverage/*) exit 0 ;;
-  */.turbo/*|*/__generated__/*|*/.generated/*|*/generated/*) exit 0 ;;
-  */.cache/*|*/.output/*|*/.nuxt/*|*/.svelte-kit/*|*/.vercel/*) exit 0 ;;
-  */.graphql/*|*/graphql/generated/*|*/.prisma/*|*/prisma/generated/*) exit 0 ;;
-  */.storybook/static/*|*/out/*|*/.parcel-cache/*|*/.turbopack/*) exit 0 ;;
-esac
+# Skip non-code files
+if ! is_code_file "$FILE_PATH"; then
+  exit 0
+fi
+
+# Skip generated/vendor directories
+if is_generated_path "$FILE_PATH"; then
+  exit 0
+fi
 
 # Resolve project directory
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
@@ -45,52 +54,29 @@ if [ ! -f "$FILE_PATH" ]; then
   exit 0
 fi
 
-# Detect package manager (don't hardcode pnpm — respect the project's choice)
-PKG_MGR="pnpm"
-if [ -f "$PROJECT_DIR/bun.lockb" ] || [ -f "$PROJECT_DIR/bun.lock" ]; then
-  PKG_MGR="bun"
-elif [ -f "$PROJECT_DIR/yarn.lock" ]; then
-  PKG_MGR="yarn"
-elif [ -f "$PROJECT_DIR/package-lock.json" ]; then
-  PKG_MGR="npx"
-fi
+# Detect formatter for this file
+detect_formatter "$FILE_PATH" "$PROJECT_DIR"
 
-# Detect Biome
-if [ -f "$PROJECT_DIR/biome.json" ] || [ -f "$PROJECT_DIR/biome.jsonc" ]; then
-  # Run Biome check with auto-fix
-  OUTPUT=$(cd "$PROJECT_DIR" && $PKG_MGR biome check --write "$FILE_PATH" 2>&1) || {
-    EXIT_CODE=$?
-    # Send first 10 lines of error to stderr
-    echo "$OUTPUT" | head -n 10 >&2
-    exit 2
-  }
+if [ -z "$FORMATTER_CMD" ]; then
   exit 0
 fi
 
-# Detect ESLint
-HAS_ESLINT=false
-for f in "$PROJECT_DIR"/eslint.config.* "$PROJECT_DIR"/.eslintrc.*; do
-  if [ -f "$f" ]; then
-    HAS_ESLINT=true
-    break
-  fi
-done
-
-if [ "$HAS_ESLINT" = true ]; then
-  # Run ESLint with fix
-  OUTPUT=$(cd "$PROJECT_DIR" && $PKG_MGR eslint --fix "$FILE_PATH" 2>&1) || {
+# Run the formatter
+# The FORMATTER_CMD may contain $FILE as a placeholder; if not, append the file path
+if [[ "$FORMATTER_CMD" == *'$FILE'* ]]; then
+  FILE="$FILE_PATH"
+  export FILE
+  OUTPUT=$(cd "$PROJECT_DIR" && eval "$FORMATTER_CMD" 2>&1) || {
     EXIT_CODE=$?
     echo "$OUTPUT" | head -n 10 >&2
     exit 2
   }
-  # Run Prettier
-  OUTPUT=$(cd "$PROJECT_DIR" && $PKG_MGR prettier --write "$FILE_PATH" 2>&1) || {
+else
+  OUTPUT=$(cd "$PROJECT_DIR" && eval "$FORMATTER_CMD" '"$FILE_PATH"' 2>&1) || {
     EXIT_CODE=$?
     echo "$OUTPUT" | head -n 10 >&2
     exit 2
   }
-  exit 0
 fi
 
-# No linter found — skip silently
 exit 0

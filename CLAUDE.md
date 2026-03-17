@@ -345,10 +345,10 @@ Stay in scope. Resist "one more thing."
 
 The "Agent NEVER does" column is enforced as PreToolUse hooks in `~/.claude/settings.json`, not just prompt suggestions. What hooks actually enforce:
 
-- **PreToolUse(Bash):** Blocks destructive commands and detects proot environment
-- **PreToolUse(Write|Edit):** TDD enforcement — blocks production code edits if no corresponding test file exists (`check-test-exists.sh`). Write the test first.
-- **PostToolUse(Write|Edit):** Auto-formats TS/JS files if Biome or ESLint is configured (skips silently if no linter found; exit 2 on unfixable lint errors). Then verifies INVARIANTS.md rules — blocks if any machine-verifiable invariant is violated (`check-invariants.sh`).
-- **Stop:** Type-checks TypeScript (exit 2 on type errors), reminds to run /compound when PRD tasks complete (exit 2 if compound not run), and enforces Anti-Premature Completion Protocol — blocks if task marked complete without verification evidence (`verify-completion.sh`)
+- **PreToolUse(Bash):** Blocks destructive commands and detects proot environment. Package manager enforcement is project-aware (only blocks npm if pnpm-lock.yaml exists).
+- **PreToolUse(Write|Edit):** TDD enforcement — blocks production code edits if no corresponding test file exists (`check-test-exists.sh`). Language-universal: supports TS/JS, Python, Go, Rust, Ruby, Java, Kotlin, Elixir, Swift, Dart, C#, Scala, C/C++, Haskell, Zig. Write the test first.
+- **PostToolUse(Write|Edit):** Auto-formats code files using the detected formatter for the file's language (Biome/ESLint for JS/TS, ruff/black for Python, rustfmt for Rust, gofmt for Go, etc.). Skips silently if no formatter found; exit 2 on unfixable errors. Then verifies INVARIANTS.md rules — blocks if any machine-verifiable invariant is violated (`check-invariants.sh`).
+- **Stop:** Runs static type checking for the detected project language (tsc/tsgo for TypeScript, cargo check for Rust, go vet for Go, mypy/pyright for Python, etc.). Reminds to run /compound when PRD tasks complete (exit 2 if compound not run). Enforces Anti-Premature Completion Protocol — blocks if task marked complete without verification evidence (`verify-completion.sh`).
 - **Notification:** Desktop alert when agent needs attention (no-op in proot)
 
 Anti-Goodhart verification is enforced by sprint-executor Step 8, orchestrator Step 8.5, and plan-build-test Phase 5.5 — not by hooks.
@@ -356,7 +356,7 @@ Anti-Goodhart verification is enforced by sprint-executor Step 8, orchestrator S
 - **Hard block** (always denied): `rm -rf /`, `rm -rf` on system directories (`/etc`, `/usr`, `/var`, `/home`, etc.), `dd`, fork bombs
 - **Soft block** (warns and asks user for confirmation):
   - Destructive git: `git push --force`, `git push -f`, `git push --force-with-lease`, `git push ... main/master`, `git reset --hard`, `git checkout .`, `git restore .`, `git branch -D`, `git clean -f`, `git stash drop/clear`
-  - Forbidden package managers: `npm install/run/exec/start/test/build/ci/init`, `npx` — project uses pnpm exclusively
+  - Package manager mismatch: `npm`/`npx` blocked only when `pnpm-lock.yaml` exists (project-aware detection)
 
 Soft blocks exit 2 with a descriptive message — the user can re-approve if the operation is genuinely required.
 
@@ -656,24 +656,24 @@ After every task, evaluate whether documentation needs updating (part of compoun
 ## PROOT-DISTRO ARM64 ENVIRONMENT
 
 **Auto-detection:** If `uname -r` contains `PRoot-Distro` AND `uname -m` = `aarch64`, all rules in this section are ACTIVE. Three layers handle proot:
-- **settings.json env:** Sets `NODE_OPTIONS`, `CHOKIDAR_USEPOLLING`, `WATCHPACK_POLLING` globally (always active)
-- **proot-preflight.sh:** Runs on first Bash command per session; WARNS about disk, symlinks, SST locks, .npmrc (informational only, exit 0)
-- **worktree-preflight.sh:** Called by orchestrator Step 0; sets env vars and fixes deps for sprint execution
+- **settings.json env:** Sets `NODE_OPTIONS`, `CHOKIDAR_USEPOLLING`, `WATCHPACK_POLLING` globally (harmless for non-Node.js projects)
+- **proot-preflight.sh:** Runs on first Bash command per session; language-aware warnings (Node.js checks only run if package.json exists)
+- **worktree-preflight.sh:** Called by orchestrator Step 0; detects all project languages, sets env vars and installs deps per-language
 
-**Full reference:** `~/.claude/docs/proot-distro-environment.md`
+**Full reference:** `~/.claude/docs/proot-distro-environment.md` and `~/.claude/docs/universal-workflow-guide.md`
 
 ### Mandatory Rules (when proot-distro detected)
 
 1. **NEVER attempt `playwright install chromium`** or `browser_take_screenshot` — Chromium doesn't run in proot ARM64. Use `browser_snapshot` (accessibility tree) instead.
-2. **NEVER trust `pnpm install` blindly** — Check `.npmrc` for `node-linker=hoisted` first. After install, verify: `find node_modules/.bin -type l ! -exec test -e {} \; -print | head -5`
+2. **NEVER trust dependency install blindly** — For Node.js: check `.npmrc` for `node-linker=hoisted` first. After install, verify: `find node_modules/.bin -type l ! -exec test -e {} \; -print | head -5`
 3. **NEVER set tight timeouts** — Everything runs 2-5x slower. Multiply expected times by 3x minimum.
 4. **NEVER use Lighthouse/PageSpeed as quality gates** — Performance scores are unreliable in proot. Mark as `BLOCKED: proot-distro ARM64`.
 5. **NEVER rely on `inotify`** — Polling env vars are set globally in `settings.json`.
 6. **ALWAYS check for SST state locks** before deploy: `ls .sst/lock* 2>/dev/null`
-7. **NODE_OPTIONS is set globally** in `settings.json` — no manual export needed.
+7. **NODE_OPTIONS is set globally** in `settings.json` — no manual export needed (harmless for non-Node.js).
 8. **ALWAYS use retry-with-backoff for external APIs** — `source ~/.claude/hooks/retry-with-backoff.sh`
 
-### Known Native Module Failures
+### Known Native Module Failures (Node.js)
 
 These packages have native binaries that WILL fail in proot-distro:
 - `@parcel/watcher` → use `PARCEL_WATCHER_BACKEND=fs-events` or JS fallback
@@ -681,6 +681,15 @@ These packages have native binaries that WILL fail in proot-distro:
 - `sharp` → use JS-based image processing alternatives
 - `turbo` (native) → use non-native mode
 - Any `node-gyp` compilation → prefer JS alternatives
+
+### Proot Considerations for Other Languages
+
+| Language | Issue | Workaround |
+|----------|-------|------------|
+| Rust | Long compile times, may OOM | `cargo check` over `cargo build`, `codegen-units = 1` |
+| Go | `/proc/self/exe` → `/.l2s/` path translation | Copy resource files to `/.l2s/` |
+| Python | No known issues | Works well |
+| Java | JVM startup slow | Gradle daemon, increase memory |
 
 ### Go Binary /.l2s/ Fix
 

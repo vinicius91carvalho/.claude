@@ -53,17 +53,18 @@ if [[ "$FILE_PATH" != /* ]]; then
   FILE_PATH="$PROJECT_DIR/$FILE_PATH"
 fi
 
+# Source shared detection library for is_code_file and is_generated_path
+source ~/.claude/hooks/lib/detect-project.sh
+
 # Skip non-code files (invariant checks only matter for source code)
-case "$FILE_PATH" in
-  *.ts|*.tsx|*.js|*.jsx|*.py|*.go|*.rs|*.java|*.rb|*.php) ;;
-  *) exit 0 ;;
-esac
+if ! is_code_file "$FILE_PATH"; then
+  exit 0
+fi
 
 # Skip generated/vendor directories
-case "$FILE_PATH" in
-  */node_modules/*|*/dist/*|*/build/*|*/.next/*|*/coverage/*) exit 0 ;;
-  */.turbo/*|*/__generated__/*|*/.generated/*|*/generated/*) exit 0 ;;
-esac
+if is_generated_path "$FILE_PATH"; then
+  exit 0
+fi
 
 # === COLLECT INVARIANT FILES ===
 # Walk from the edited file's directory up to the project root,

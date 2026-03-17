@@ -36,29 +36,40 @@ if [ -n "$DISK_FREE_KB" ] && [ "$DISK_FREE_KB" -lt 1048576 ]; then  # < 1GB
   WARNINGS="${WARNINGS}\n⚠ LOW DISK: Only ${DISK_FREE_MB}MB free. Builds may fail."
 fi
 
-# Check for broken symlinks in node_modules
-if [ -d "$PROJECT_DIR/node_modules/.bin" ]; then
-  BROKEN_COUNT=$(find "$PROJECT_DIR/node_modules/.bin" -type l ! -exec test -e {} \; -print 2>/dev/null | wc -l)
-  if [ "$BROKEN_COUNT" -gt 0 ]; then
-    WARNINGS="${WARNINGS}\n⚠ BROKEN SYMLINKS: $BROKEN_COUNT broken symlinks in node_modules/.bin. Run: pnpm install"
+# Node.js-specific checks (only if this is a Node.js project)
+if [ -f "$PROJECT_DIR/package.json" ]; then
+  # Check for broken symlinks in node_modules
+  if [ -d "$PROJECT_DIR/node_modules/.bin" ]; then
+    BROKEN_COUNT=$(find "$PROJECT_DIR/node_modules/.bin" -type l ! -exec test -e {} \; -print 2>/dev/null | wc -l)
+    if [ "$BROKEN_COUNT" -gt 0 ]; then
+      WARNINGS="${WARNINGS}\n⚠ BROKEN SYMLINKS: $BROKEN_COUNT broken symlinks in node_modules/.bin. Run: pnpm install"
+    fi
+  fi
+
+  # Check for .npmrc with node-linker
+  if [ -f "$PROJECT_DIR/.npmrc" ]; then
+    if ! grep -q "node-linker" "$PROJECT_DIR/.npmrc" 2>/dev/null; then
+      WARNINGS="${WARNINGS}\nℹ NPMRC: No node-linker setting. Consider adding node-linker=hoisted to .npmrc for proot compatibility."
+    fi
+  fi
+
+  # Check NODE_OPTIONS
+  if [ -z "${NODE_OPTIONS:-}" ]; then
+    WARNINGS="${WARNINGS}\nℹ MEMORY: NODE_OPTIONS not set. Consider: export NODE_OPTIONS='--max-old-space-size=2048'"
   fi
 fi
 
-# Check for stale SST locks
+# Rust-specific checks
+if [ -f "$PROJECT_DIR/Cargo.toml" ]; then
+  # Rust cross-compilation can be tricky in proot
+  if [ ! -f "$HOME/.cargo/config.toml" ] 2>/dev/null; then
+    WARNINGS="${WARNINGS}\nℹ RUST: No ~/.cargo/config.toml found. Build times may be slow without incremental compilation settings."
+  fi
+fi
+
+# Check for stale SST locks (project-agnostic — SST works with multiple languages)
 if [ -f "$PROJECT_DIR/.sst/lock" ]; then
   WARNINGS="${WARNINGS}\n⚠ SST LOCK: Stale lock file found at .sst/lock. Remove if no deploy is running."
-fi
-
-# Check for .npmrc with node-linker
-if [ -f "$PROJECT_DIR/.npmrc" ]; then
-  if ! grep -q "node-linker" "$PROJECT_DIR/.npmrc" 2>/dev/null; then
-    WARNINGS="${WARNINGS}\nℹ NPMRC: No node-linker setting. Consider adding node-linker=hoisted to .npmrc for proot compatibility."
-  fi
-fi
-
-# Check NODE_OPTIONS
-if [ -z "${NODE_OPTIONS:-}" ]; then
-  WARNINGS="${WARNINGS}\nℹ MEMORY: NODE_OPTIONS not set. Consider: export NODE_OPTIONS='--max-old-space-size=2048'"
 fi
 
 # Only output if there are warnings
