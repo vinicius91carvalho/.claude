@@ -132,14 +132,19 @@ if [[ "$COMMAND" =~ git[[:space:]]+stash[[:space:]]+(drop|clear) ]]; then
   deny "SOFT BLOCK: git stash drop/clear — permanently discards stashed changes. Re-approve if intentional."
 fi
 
-# === SOFT BLOCKS: npm/npx ===
+# === SOFT BLOCKS: Package manager enforcement ===
+# Only block npm/npx if the project explicitly uses pnpm (detected by lockfile).
+# This prevents forcing pnpm on projects that use npm, yarn, or bun.
 
-if [[ "$COMMAND" =~ (^|[[:space:]])npm[[:space:]]+(install|run|exec|start|test|build|ci|init)([[:space:]]|$) ]]; then
-  deny "SOFT BLOCK: npm detected — this project uses pnpm exclusively. Use pnpm instead."
-fi
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-${PWD:-$(pwd)}}"
+if [ -f "$PROJECT_DIR/pnpm-lock.yaml" ] || [ -f "$PROJECT_DIR/pnpm-workspace.yaml" ]; then
+  if [[ "$COMMAND" =~ (^|[[:space:]])npm[[:space:]]+(install|run|exec|start|test|build|ci|init)([[:space:]]|$) ]]; then
+    deny "SOFT BLOCK: npm detected — this project uses pnpm (pnpm-lock.yaml found). Use pnpm instead."
+  fi
 
-if [[ "$COMMAND" =~ (^|[[:space:]])npx[[:space:]]+ ]]; then
-  deny "SOFT BLOCK: npx detected — this project uses pnpm exclusively. Use pnpm dlx instead."
+  if [[ "$COMMAND" =~ (^|[[:space:]])npx[[:space:]]+ ]]; then
+    deny "SOFT BLOCK: npx detected — this project uses pnpm (pnpm-lock.yaml found). Use pnpm dlx instead."
+  fi
 fi
 
 # All checks passed

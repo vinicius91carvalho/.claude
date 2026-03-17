@@ -76,12 +76,12 @@ While `CLAUDE.md` provides guidelines the model "should" follow, `settings.json`
 
 | Hook | Type | Trigger | Purpose | Blocking? |
 |---|---|---|---|---|
-| `block-dangerous.sh` | PreToolUse(Bash) | Every shell command | Block destructive operations | Hard/soft block |
-| `proot-preflight.sh` | PreToolUse(Bash) | First command/session | Warn about proot issues | No (informational) |
-| `check-test-exists.sh` | PreToolUse(Write/Edit) | Every file edit | TDD gate — require test file | Yes (exit 2 if missing) |
-| `post-edit-quality.sh` | PostToolUse(Write/Edit) | Every file edit | Auto-format TS/JS | Yes (exit 2 on lint errors) |
+| `block-dangerous.sh` | PreToolUse(Bash) | Every shell command | Block destructive operations; project-aware pkg mgr | Hard/soft block |
+| `proot-preflight.sh` | PreToolUse(Bash) | First command/session | Warn about proot issues (language-aware) | No (informational) |
+| `check-test-exists.sh` | PreToolUse(Write/Edit) | Every file edit | TDD gate — require test file (16 languages) | Yes (exit 2 if missing) |
+| `post-edit-quality.sh` | PostToolUse(Write/Edit) | Every file edit | Auto-format code (all languages) | Yes (exit 2 on lint errors) |
 | `check-invariants.sh` | PostToolUse(Write/Edit) | Every file edit | Verify INVARIANTS.md rules | Yes (exit 2 on violation) |
-| `end-of-turn-typecheck.sh` | Stop | End of turn | Type-check TypeScript | Yes (exit 2 on type errors) |
+| `end-of-turn-typecheck.sh` | Stop | End of turn | Static type checking (all languages) | Yes (exit 2 on type errors) |
 | `compound-reminder.sh` | Stop | End of turn | Ensure /compound ran | Yes (exit 2 if skipped) |
 | `verify-completion.sh` | Stop | End of turn | Block premature completion | Yes (exit 2 without evidence) |
 | `validate-i18n-keys.sh` | (ship-test-ensure) | Pre-commit | Cross-validate i18n keys across locales | No (informational) |
@@ -109,47 +109,50 @@ Runs **before** every Bash command and implements three protection levels:
 |---|---|---|
 | Destructive git | `git push --force`, `git reset --hard`, `git checkout .`, `git restore .`, `git branch -D`, `git clean -f`, `git stash drop/clear` | Can destroy work irreversibly |
 | Push to main | `git push ... main/master` | Enforces PR workflow |
-| Wrong package manager | `npm install/run/exec/start/test/build/ci/init`, `npx` | Project uses pnpm exclusively |
+| Package manager mismatch | `npm`/`npx` (only when `pnpm-lock.yaml` exists) | Project-aware: only blocks npm in pnpm projects |
 
 The hook uses pure bash regex matching (no subprocesses) for performance.
 
 ## PostToolUse: post-edit-quality.sh
 
-Runs **after** every Write, Edit, or MultiEdit operation:
+Runs **after** every Write, Edit, or MultiEdit operation. **Language-universal** — auto-detects the file's language and project's formatter.
 
 ```
 File edited
     │
     ▼
-Is it a TS/JS file? ─── No ──► skip
+Is it a code file? ─── No ──► skip
+(detects via lib/detect-project.sh)
     │
    Yes
     │
     ▼
-Is it in an excluded dir? ─── Yes ──► skip
-(node_modules, dist, .next, etc.)
+Is it in a generated/vendor dir? ─── Yes ──► skip
+(node_modules, target/, __pycache__, .venv, etc.)
     │
    No
     │
     ▼
-Biome config exists? ─── Yes ──► biome check --write
+Detect formatter for this file's language:
+  TS/JS: Biome > ESLint > Prettier
+  Python: ruff > black > autopep8
+  Go: goimports > gofmt
+  Rust: rustfmt
+  Ruby: rubocop
+  Elixir: mix format
+  Dart: dart format
+  C/C++: clang-format
+  (and more — see lib/detect-project.sh)
     │
-   No
-    │
-    ▼
-ESLint config exists? ─── Yes ──► eslint --fix + prettier --write
-    │
-   No
-    │
-    ▼
-skip (no linter found)
+    ├─ Found ──► run formatter
+    └─ Not found ──► skip silently
 ```
 
-**Why this matters:** The agent never needs to remember to format code. Every edit is auto-formatted with zero cognitive overhead.
+**Why this matters:** The agent never needs to remember to format code. Every edit is auto-formatted with zero cognitive overhead, regardless of language.
 
 ## Stop Hook: end-of-turn-typecheck.sh
 
-When the agent tries to end a turn after writing code:
+When the agent tries to end a turn after writing code. **Language-universal** — auto-detects the project's language(s) and runs the appropriate type/static checker.
 
 ```
 Agent wants to stop
@@ -160,22 +163,29 @@ Was code written this turn? ─── No ──► allow stop
    Yes
     │
     ▼
-Has tsconfig.json? ─── No ──► allow stop
+Detect project language(s) ─── None ──► allow stop
     │
-   Yes
+   Found
     │
     ▼
-Find type checker (preference order):
-1. Native tsgo binary (cached path for speed)
-2. Global tsgo
-3. pnpm tsc --noEmit --skipLibCheck (fallback)
+Resolve type checker for detected language:
+  TypeScript: tsgo (native, cached) > tsgo (global) > tsc
+  Python: pyright > mypy
+  Go: go vet
+  Rust: cargo check
+  Java: gradle/maven compile
+  Dart: dart analyze
+  C#: dotnet build
+  (and more — see lib/detect-project.sh)
+    │
+    ├─ No checker found ──► allow stop
     │
     ▼
 Run type checker
     │
     ├─ Pass ──► allow stop
-    ├─ Fail ──► BLOCK (agent must fix types)
-    └─ Crash ──► fallback to tsc
+    ├─ Fail ──► BLOCK (agent must fix errors)
+    └─ Crash (tsgo only) ──► fallback to tsc
 ```
 
 ## Stop Hook: compound-reminder.sh
@@ -223,8 +233,8 @@ Was /compound run?
 | Setting | Purpose |
 |---|---|
 | `ENABLE_LSP_TOOL` | Enables Language Server Protocol (goToDefinition, findReferences, etc.) |
-| `NODE_OPTIONS` | Increases Node.js memory limit (essential for proot-distro ARM64) |
-| `CHOKIDAR_USEPOLLING` / `WATCHPACK_POLLING` | Enables polling-based file watching |
+| `NODE_OPTIONS` | Increases Node.js memory limit (essential for proot-distro ARM64; harmless for non-Node projects) |
+| `CHOKIDAR_USEPOLLING` / `WATCHPACK_POLLING` | Enables polling-based file watching (Node.js only; harmless for others) |
 | `bypassPermissions` | Allows autonomous execution — compensated by hook safety |
 | `effortLevel: "high"` | Claude invests more tokens/reasoning in responses |
 
@@ -254,38 +264,47 @@ Exit codes: `0` = allow, `1` = error, `2` = block with message (stderr).
 
 ## PreToolUse: check-test-exists.sh
 
-Runs **before** every Write, Edit, or MultiEdit on production code files. Enforces TDD — you must write the test file before editing the implementation.
+Runs **before** every Write, Edit, or MultiEdit on production code files. Enforces TDD — you must write the test file before editing the implementation. **Language-universal** — supports 16 languages with idiomatic test patterns.
 
 ```
 File about to be edited
     │
     ▼
-Is it a code file? (.ts/.tsx/.js/.jsx) ─── No ──► allow
+Is it a code file? ─── No ──► allow
+(any of 16 supported languages)
     │
    Yes
     │
     ▼
 Is it skip-listed? ──── Yes ──► allow
-(test files, config files, index.ts,
- types.ts, .d.ts, migrations, etc.)
+(test files, config files, entry points,
+ .d.ts, migrations, generated dirs, etc.)
     │
    No
     │
     ▼
 Does project have test infrastructure? ─── No ──► allow
-(vitest.config, jest.config, etc.)
+(language-aware: vitest, pytest, go.mod,
+ Cargo.toml, rspec, gradle, etc.)
     │
    Yes
     │
     ▼
 Does a matching test file exist? ─── Yes ──► allow
-(__tests__/name.test.ts, name.test.ts,
- name.spec.ts, tests/name.test.ts)
+(language-idiomatic patterns:
+ TS/JS: foo.test.ts, foo.spec.ts, __tests__/
+ Python: test_foo.py, foo_test.py, tests/
+ Go: foo_test.go
+ Rust: tests/foo.rs, inline #[cfg(test)]
+ Ruby: foo_spec.rb, spec/, test/
+ Java: FooTest.java, src/test/java/
+ and more...)
     │
    No
     │
     ▼
 BLOCK (exit 2): "Write the test first"
+  (includes language name and expected test locations)
 ```
 
 **Why this matters:** TDD is mandatory. Without this hook, agents write implementation first and tests as an afterthought — leading to tests that validate output rather than behavior.
