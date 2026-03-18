@@ -1,0 +1,17 @@
+{
+  "skill_name": "playwright-stealth",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Use playwright stealth to extract the full content from a blog post URL I provide — I want the title, full article text, and any metadata you can find.",
+      "expected_output": "Structured markdown report with blog post title, full article content preserved in markdown format, metadata (author, date, tags), plus diagnostics showing bot detection handling.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Get a public profile page content from a URL I provide — extract all visible structured data (name, headline, sections, etc).",
+      "expected_output": "Structured markdown report with profile data extracted from visible page content, plus diagnostics. Should handle auth walls gracefully if encountered.",
+      "files": []
+    }
+  ]
+}
