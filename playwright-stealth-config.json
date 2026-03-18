@@ -1,0 +1,55 @@
+{
+  "browserName": "chromium",
+  "executablePath": "/usr/bin/chromium",
+  "launchOptions": {
+    "headless": true,
+    "args": [
+      "--disable-blink-features=AutomationControlled",
+      "--no-sandbox",
+      "--disable-gpu",
+      "--no-first-run",
+      "--disable-infobars",
+      "--disable-dev-shm-usage",
+      "--disable-background-networking",
+      "--disable-background-timer-throttling",
+      "--disable-backgrounding-occluded-windows",
+      "--disable-breakpad",
+      "--disable-component-extensions-with-background-pages",
+      "--disable-component-update",
+      "--disable-default-apps",
+      "--disable-extensions",
+      "--disable-features=TranslateUI",
+      "--disable-hang-monitor",
+      "--disable-ipc-flooding-protection",
+      "--disable-popup-blocking",
+      "--disable-prompt-on-repost",
+      "--disable-renderer-backgrounding",
+      "--disable-sync",
+      "--enable-features=NetworkService,NetworkServiceInProcess",
+      "--force-color-profile=srgb",
+      "--metrics-recording-only",
+      "--no-default-browser-check",
+      "--password-store=basic",
+      "--use-mock-keychain",
+      "--export-tagged-pdf"
+    ],
+    "ignoreDefaultArgs": ["--enable-automation"]
+  },
+  "contextOptions": {
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+    "viewport": {
+      "width": 1366,
+      "height": 768
+    },
+    "locale": "en-US",
+    "timezoneId": "America/New_York",
+    "permissions": [],
+    "extraHTTPHeaders": {
+      "Accept-Language": "en-US,en;q=0.9",
+      "sec-ch-ua": "\"Chromium\";v=\"144\", \"Google Chrome\";v=\"144\", \"Not:A-Brand\";v=\"99\"",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "\"Linux\""
+    }
+  },
+  "initScript": "~/.claude/playwright-stealth-init.js"
+}

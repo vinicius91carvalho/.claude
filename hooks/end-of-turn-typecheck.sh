@@ -32,6 +32,11 @@ fi
 # Resolve project directory
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 
+# Skip if working in home directory (not a real project)
+if [ "$PROJECT_DIR" = "$HOME" ] || [ "$PROJECT_DIR" = "/root" ]; then
+  exit 0
+fi
+
 # Source shared detection library
 source ~/.claude/hooks/lib/detect-project.sh
 

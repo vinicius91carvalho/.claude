@@ -4,6 +4,7 @@
 .credentials.json
 
 # Exclude backup files and ephemeral session data
+*.bak
 *.bak.*
 sessions/
 
@@ -39,3 +40,13 @@ tasks/
 telemetry/
 todos/
 usage-data/
+
+# Exclude evolution data that contains project-specific info
+evolution/error-registry.json
+evolution/model-performance.json
+evolution/workflow-changelog.md
+evolution/session-postmortems/*.md
+!evolution/session-postmortems/.gitkeep
+
+# Exclude hook runtime artifacts
+hooks/logs/
