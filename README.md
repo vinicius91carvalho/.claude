@@ -41,6 +41,30 @@ PLAN → WORK → REVIEW → COMPOUND → (next task is now easier)
 
 The core loop. Plan + Review = 80% of effort. Work + Compound = 20%. The bottleneck is knowing **what** to build and **verifying** it was built correctly — not typing speed.
 
+## The Autonomous Pipeline
+
+The preferred end-to-end workflow minimizes human touchpoints to four: review the plan, approve it, test manually, confirm production deploy. Everything else runs without interruption.
+
+```
+/plan → User reviews PRD → Approves → /plan-build-test (autonomous) → User tests manually → /ship-test-ensure (autonomous through staging, confirms before prod)
+```
+
+**What each step does:**
+
+1. **`/plan`** — Generates a PRD (Product Requirements Document) with sprint decomposition, acceptance criteria, and an architecture invariant registry. The user reviews and approves.
+2. **`/plan-build-test`** — Picks up the approved PRD, spawns agent teams in isolated worktrees, implements each sprint, runs all tests and E2E locally. Runs autonomously from start to finish — no checkpoints.
+3. **User tests manually** — The only hands-on step. Verify the feature works as intended.
+4. **`/ship-test-ensure`** — Commits, pushes a branch, creates a PR, merges via CI/CD, follows the staging deploy, runs E2E on staging, then **asks the user once** before deploying to production. After production deploy, runs Lighthouse/PageSpeed audits.
+
+**Safety gates that autonomous mode never skips:**
+- Production deploy requires user confirmation
+- Rollback decisions require user confirmation
+- Escalation logic still applies (ambiguity, scope > 2x, etc.)
+- Anti-Premature Completion Protocol still enforced
+- Verification Integrity rules still enforced
+
+After shipping, `/compound` auto-captures learnings and promotes patterns — making the next task easier. That's the compound loop.
+
 ## Repository Structure
 
 ```
