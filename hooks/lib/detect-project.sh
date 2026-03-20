@@ -583,6 +583,10 @@ has_test_infra() {
   # If no language specified, check all
   case "$lang" in
     typescript|javascript|"")
+      # Skip TDD enforcement if deps not installed — can't run tests anyway
+      if [ -n "$lang" ] && ! has_node_deps_installed "$dir"; then
+        return 1
+      fi
       # Node.js test frameworks
       for marker in "$dir/jest.config"* "$dir/vitest.config"* "$dir/cypress.config"*; do
         [ -f "$marker" ] 2>/dev/null && return 0
@@ -676,6 +680,11 @@ detect_formatter() {
 
   case "$lang" in
     typescript|javascript)
+      # Skip if node_modules missing — formatters are installed as deps
+      if ! has_node_deps_installed "$project_dir"; then
+        return 0
+      fi
+
       # Detect Node.js package manager first
       detect_pkg_manager "$project_dir"
       local runner="${PKG_MGR:-npx}"
@@ -1036,6 +1045,16 @@ detect_dep_install_cmd() {
         ;;
     esac
   done
+}
+
+# ─── DEPENDENCY STATE ────────────────────────────────────────────────
+
+# Returns 0 if Node.js dependencies appear to be installed.
+# Checks for a non-empty node_modules directory.
+# Usage: has_node_deps_installed "/project" && echo "deps OK"
+has_node_deps_installed() {
+  local dir="$1"
+  [ -d "$dir/node_modules" ] && [ -n "$(ls -A "$dir/node_modules" 2>/dev/null)" ]
 }
 
 # ─── FILE EXTENSION HELPERS ───────────────────────────────────────────

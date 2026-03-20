@@ -122,6 +122,16 @@ TOOL_NAME=""
 TOOL_CMD=""
 
 for lang in "${PROJECT_LANGS[@]}"; do
+  # Skip languages that need installed dependencies when node_modules is missing
+  case "$lang" in
+    typescript|javascript)
+      if ! has_node_deps_installed "$PROJECT_DIR"; then
+        echo "⚠ Typecheck skipped: node_modules missing or empty. Run pnpm install." >&2
+        exit 0
+      fi
+      ;;
+  esac
+
   case "$lang" in
     typescript)
       # TypeScript has special tsgo optimization
