@@ -50,3 +50,6 @@ evolution/session-postmortems/*.md
 
 # Exclude hook runtime artifacts
 hooks/logs/
+
+# Exclude session state markers (preflight, compound, completion evidence)
+state/

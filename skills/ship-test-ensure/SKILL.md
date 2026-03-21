@@ -242,9 +242,22 @@ gh pr checks [PR_NUMBER] --repo {github_repo} --watch
 gh pr merge [PR_NUMBER] --repo {github_repo} --squash --delete-branch
 ```
 
-If the user merges on GitHub: wait for confirmation, then `git checkout main && git pull origin main` and continue to Phase 2.
+If the user merges on GitHub: wait for confirmation, then sync local main (see below).
 
 If CI checks fail on the PR: diagnose, fix, push to the same branch, wait for re-run. Max 3 cycles.
+
+**After merge (both paths), sync local main:**
+
+```bash
+# IMPORTANT: Squash-merge creates a new commit on remote that differs from
+# local pre-squash commits. A plain `git pull` will fail with "divergent branches".
+# The correct sequence:
+git checkout main
+git fetch origin main
+git pull --ff-only origin main
+# If ff-only fails (local has pre-squash commits), reset to remote:
+# git reset --hard origin/main  (safe: all our changes are in the squash commit)
+```
 
 ### Step 1.4: Save Pipeline State
 
@@ -434,7 +447,7 @@ fi
 ```
 
 **If proot detected:**
-- Skip local Lighthouse CLI (Chromium doesn't run in proot ARM64)
+- Skip local Lighthouse CLI (unreliable performance scores in proot ARM64)
 - Use PageSpeed Insights API only (tests the remote production site, which is valid)
 - Accept configurable thresholds: read `lighthouse_threshold` from project CLAUDE.md
   Execution Config (default: 100). In proot, if not configured, warn and default to 90.

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'echo "HOOK CRASH: $0 line $LINENO" >&2; exit 2' ERR
 
 # PostToolUse(Write|Edit) hook: Verify project invariants after code changes.
 #
@@ -55,6 +56,7 @@ fi
 
 # Source shared detection library for is_code_file and is_generated_path
 source ~/.claude/hooks/lib/detect-project.sh
+source ~/.claude/hooks/lib/hook-logger.sh 2>/dev/null || true
 
 # Skip non-code files (invariant checks only matter for source code)
 if ! is_code_file "$FILE_PATH"; then
@@ -91,12 +93,31 @@ if [ ${#INVARIANT_FILES[@]} -eq 0 ]; then
   exit 0
 fi
 
+# === SANDBOX: Command whitelist/blocklist for verify commands ===
+# INVARIANTS.md files may come from cloned repos. Restrict what verify commands can run.
+
+SAFE_CMDS="grep|test|jq|wc|diff|cat|find|ls|head|tail|sort|uniq|echo|true|false|\\[|stat|file"
+BLOCKED_PATTERNS="curl|wget|nc|ncat|bash|sh|zsh|python|python3|node|ruby|perl|eval|exec|source|\\.|sudo|su|chmod|chown|rm|mv|cp|dd|mkfs|mount|kill|pkill|xargs"
+
+is_safe_verify_cmd() {
+  local cmd="$1"
+  # Block if command contains any dangerous pattern
+  for pattern in ${BLOCKED_PATTERNS//|/ }; do
+    # Match as a word boundary (start of command or after pipe/semicolon/&&)
+    if [[ "$cmd" =~ (^|[|;&[:space:]])${pattern}([[:space:]]|$) ]]; then
+      return 1
+    fi
+  done
+  return 0
+}
+
 # === PARSE AND VERIFY ===
 # Extract verify commands from INVARIANTS.md files and run them.
 # Format: - **Verify:** `command here`
 
 VIOLATIONS=()
 CHECKED=0
+SKIPPED=0
 
 for INV_FILE in "${INVARIANT_FILES[@]}"; do
   CURRENT_INVARIANT=""
@@ -114,6 +135,14 @@ for INV_FILE in "${INVARIANT_FILES[@]}"; do
     # Capture verify commands: - **Verify:** `command`
     if [[ "$line" =~ \*\*Verify:\*\*[[:space:]]*\`(.+)\` ]]; then
       VERIFY_CMD="${BASH_REMATCH[1]}"
+
+      # Sandbox check: skip untrusted commands with a warning
+      if ! is_safe_verify_cmd "$VERIFY_CMD"; then
+        SKIPPED=$((SKIPPED + 1))
+        echo "WARNING: Skipping untrusted invariant verify command: $VERIFY_CMD" >&2
+        continue
+      fi
+
       CHECKED=$((CHECKED + 1))
 
       # Run the verify command in the project directory with a timeout
@@ -131,6 +160,7 @@ fi
 
 # Report violations
 if [ ${#VIOLATIONS[@]} -gt 0 ]; then
+  log_hook_event "check-invariants" "violated" "${#VIOLATIONS[@]} of $CHECKED failed: $FILE_PATH"
   {
     echo "INVARIANT VIOLATION: ${#VIOLATIONS[@]} of $CHECKED invariants failed after editing $FILE_PATH"
     echo ""

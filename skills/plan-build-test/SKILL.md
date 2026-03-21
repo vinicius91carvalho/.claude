@@ -389,10 +389,19 @@ failing after 3: mark as BLOCKED, log in session learnings, report to user.
 
 ```
 1. Run kill command to free ports
-2. Start dev server (dev command from Execution Config) in background
-3. Wait up to 30 seconds for server to be ready
+2. Start dev server (dev command from Execution Config) in background, redirecting output to a temp log file
+3. Poll for readiness (max 60 seconds, check every 3 seconds):
+   a. Check if the log file contains "Ready" or "started server on" or "compiled"
+   b. If found, proceed to step 4
+   c. If process exited, read error output and go to failure handling
+   d. After 60 seconds without ready signal, try curl as fallback
 4. Verify server responds: curl the root URL, expect HTTP 200 or 3xx
 ```
+
+**Why polling instead of fixed sleep:** In proot-distro ARM64, Next.js Webpack compilation
+takes 25-30s+ (vs ~5s natively). A fixed `sleep 30` is either too short (500 on first
+request) or too long (wastes time on fast systems). Polling the log for "Ready" adapts
+to actual compilation time.
 
 **If dev server fails to start:**
 
@@ -427,8 +436,8 @@ If the standard dev command fails, try alternatives:**
 Even if all tests pass with perfect scores, the running app can be broken due to:
 cached state, missing runtime dependencies, environment differences, or test coverage gaps.
 
-1. With the dev server running, use Playwright MCP `browser_snapshot` (NOT screenshots —
-   Chromium doesn't run in proot) or `curl` to inspect actual rendered content:
+1. With the dev server running, use Playwright MCP `browser_snapshot`, `browser_take_screenshot`,
+   or `curl` to inspect actual rendered content:
 
 2. For each key route modified by this task:
    a. Fetch the page content (curl with `-L` to follow redirects)
@@ -498,17 +507,10 @@ cached state, missing runtime dependencies, environment differences, or test cov
 
 1. Ensure Playwright browsers are available:
    ```bash
-   # proot-distro guard: Chromium cannot run in proot ARM64
-   if uname -r 2>/dev/null | grep -q PRoot-Distro; then
-     echo "BLOCKED: proot-distro ARM64 — Chromium unavailable. Using browser_snapshot MCP instead."
-     # Skip playwright install, use browser_snapshot for accessibility tree testing
-   else
-     pnpm exec playwright install chromium
-   fi
+   pnpm exec playwright install chromium
    ```
-   **In proot:** Skip Playwright screenshot tests entirely. Use `browser_snapshot` MCP
-   (accessibility tree) for content verification instead. Mark Playwright E2E as
-   `BLOCKED: proot-distro ARM64` in the Phase 5 results table.
+   **Note:** Chromium works in proot-distro ARM64 (`/usr/bin/chromium`). Playwright E2E tests
+   run normally — do NOT skip or mark as BLOCKED.
 
 2. If a Playwright test file exists (check `tests/` or `e2e/` directory):
    - Run: `pnpm exec playwright test`

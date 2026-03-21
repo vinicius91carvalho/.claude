@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'echo "HOOK CRASH: $0 line $LINENO" >&2; exit 2' ERR
 
 # Stop hook: BLOCK if task files show completion but compound hasn't run.
 #
@@ -53,26 +54,10 @@ if [ "$COMPOUND_NEEDED" = false ]; then
 fi
 
 # Check if compound was run this session.
-# Primary: compound writes a marker file when it completes.
-# Fallback: check if any evolution file was recently modified.
-EVOLUTION_DIR="$HOME/.claude/evolution"
-RECENT_UPDATE=false
+# Only the explicit marker file satisfies this check — no fallbacks.
+MARKER="${HOME}/.claude/state/.claude-compound-done-${CLAUDE_SESSION_ID:-unknown}"
 
-# Primary check: marker file from compound (written by compound Step 8)
-MARKER="/tmp/.claude-compound-done-${CLAUDE_SESSION_ID:-unknown}"
-if [ -f "$MARKER" ]; then
-  RECENT_UPDATE=true
-fi
-
-# Fallback: any evolution file updated in last 30 minutes
-if [ "$RECENT_UPDATE" = false ] && [ -d "$EVOLUTION_DIR" ]; then
-  RECENT=$(find "$EVOLUTION_DIR" -mmin -30 -type f 2>/dev/null | head -1)
-  if [ -n "$RECENT" ]; then
-    RECENT_UPDATE=true
-  fi
-fi
-
-if [ "$RECENT_UPDATE" = false ]; then
+if [ ! -f "$MARKER" ]; then
   echo "BLOCKED: Completed task detected but /compound hasn't run." >&2
   echo "The learning loop captures errors, model performance, and patterns that prevent future failures." >&2
   echo "Run /compound to capture learnings, or dismiss this to skip (learnings will be lost)." >&2

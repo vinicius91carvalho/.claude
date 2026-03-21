@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'echo "HOOK CRASH: $0 line $LINENO" >&2; exit 0' ERR
 
 # PRoot-Distro Environment Detection & Preflight Check
 # Runs as a PreToolUse hook on first Bash command per session
@@ -12,7 +13,7 @@ if ! uname -r 2>/dev/null | grep -q "PRoot-Distro" || [ "$(uname -m)" != "aarch6
 fi
 
 # Only run preflight once per session (use a marker file, 2-hour expiry)
-SESSION_MARKER="/tmp/.claude-proot-preflight-done"
+SESSION_MARKER="${HOME}/.claude/state/.claude-proot-preflight-done"
 
 if [ -f "$SESSION_MARKER" ]; then
   MARKER_AGE=$(( $(date +%s) - $(stat -c %Y "$SESSION_MARKER" 2>/dev/null || echo 0) ))
