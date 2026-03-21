@@ -90,7 +90,7 @@ After shipping, `/compound` auto-captures learnings and promotes patterns — ma
 | `/compound` | Captures learnings, updates error registry, evolves system | Auto-invoked after task completion |
 | `/workflow-audit` | Reviews model performance, error patterns, rule staleness | Monthly or after 10+ sessions |
 | `/update-docs` | Analyzes codebase and updates README/docs to match current code | "Update docs", "sync readme", or when push is blocked by stale docs |
-| `/playwright-stealth` | Anti-detection web browsing via Patchright + Xvfb for own content | "Stealth browse", "check this site", sites with bot detection |
+
 
 **Autonomous pipeline:** `/plan` → review PRD → `/plan-build-test` (autonomous) → manual test → `/ship-test-ensure` (autonomous through staging, confirms before production).
 
@@ -149,8 +149,7 @@ The system includes a self-test suite (`test-workflow-mods/run-tests.sh`) with 1
 │   ├── ship-test-ensure/  # Deploy: branch → PR → staging → E2E → production
 │   ├── compound/          # Post-task learning capture
 │   ├── workflow-audit/    # Periodic system self-review
-│   ├── update-docs/       # Analyze code and update project documentation
-│   └── playwright-stealth/# Anti-detection web browsing for own content
+│   └── update-docs/       # Analyze code and update project documentation
 ├── hooks/             # Safety enforcement scripts (language-universal)
 │   ├── lib/
 │   │   └── detect-project.sh   # Shared language/project detection (16 languages)
