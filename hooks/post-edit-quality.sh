@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'echo "HOOK CRASH: $0 line $LINENO" >&2; exit 2' ERR
 
 # PostToolUse(Write|Edit) hook: Auto-format code after edits.
 #

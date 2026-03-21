@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'echo "HOOK CRASH: $0 line $LINENO" >&2; exit 2' ERR
 
 # PreToolUse(Write|Edit) hook: Enforce TDD by blocking production code edits
 # when no corresponding test file exists.
@@ -43,6 +44,7 @@ fi
 
 # Source shared detection library
 source ~/.claude/hooks/lib/detect-project.sh
+source ~/.claude/hooks/lib/hook-logger.sh 2>/dev/null || true
 
 # === SKIP CONDITIONS ===
 
@@ -76,9 +78,19 @@ case "$FILE_PATH" in
   *.css|*.scss|*.less|*.styles.ts|*.styled.ts) exit 0 ;;
 esac
 
-# Skip entry points (index.ts, main.rs, __init__.py, etc.)
+# Skip entry points (index.ts, main.rs, __init__.py, etc.) — but only if they're short.
+# Entry points with >20 lines likely contain real logic and should have tests.
 if is_entry_point "$FILE_PATH"; then
-  exit 0
+  if [ -f "$FILE_PATH" ]; then
+    LINE_COUNT=$(wc -l < "$FILE_PATH" 2>/dev/null || echo 0)
+    if [ "$LINE_COUNT" -le 20 ]; then
+      exit 0
+    fi
+    # >20 lines: fall through to TDD enforcement
+  else
+    # File doesn't exist yet — allow creation of entry points
+    exit 0
+  fi
 fi
 
 # Detect the file's language
@@ -119,6 +131,7 @@ if [ "$FILE_LANG" = "zig" ] && [ -f "$FILE_PATH" ]; then
 fi
 
 # No test file found — BLOCK
+log_hook_event "check-test-exists" "blocked" "$FILE_PATH"
 {
   echo "BLOCKED: TDD enforcement — no test file found for production code."
   echo "File: $FILE_PATH"

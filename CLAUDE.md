@@ -280,7 +280,7 @@ Sprint agents use `isolation: worktree` in frontmatter. Each gets its own git wo
 
 The main agent is an **orchestrator**, not a worker. Its context contains: system instructions + session learnings + subagent summaries + user messages. If reading file contents or build output directly, delegate to a subagent instead.
 
-**Exceptions:** Playwright MCP interaction (`browser_snapshot`, `browser_navigate`, etc.) stays in main agent — never delegate browser interaction to subagents. In proot-distro: use `browser_snapshot` only (accessibility tree), never `browser_take_screenshot` (Chromium unavailable). Simple file edits (checkboxes, session-learnings) are done directly. Bug investigation may read up to 5 targeted files; more than that, delegate.
+**Exceptions:** Playwright MCP interaction (`browser_snapshot`, `browser_navigate`, etc.) stays in main agent — never delegate browser interaction to subagents. Simple file edits (checkboxes, session-learnings) are done directly. Bug investigation may read up to 5 targeted files; more than that, delegate.
 
 ### Subagent Communication Protocol
 
@@ -345,20 +345,20 @@ Stay in scope. Resist "one more thing."
 
 The "Agent NEVER does" column is enforced as PreToolUse hooks in `~/.claude/settings.json`, not just prompt suggestions. What hooks actually enforce:
 
-- **PreToolUse(Bash):** Blocks destructive commands and detects proot environment. Package manager enforcement is project-aware (only blocks npm if pnpm-lock.yaml exists).
+- **PreToolUse(Bash):** Block destructive commands and detect proot environment. Package manager enforcement is project-aware (only blocks npm if pnpm-lock.yaml exists). Also validates documentation is updated when pushing workflow repo changes (`check-docs-updated.sh`).
 - **PreToolUse(Write|Edit):** TDD enforcement — blocks production code edits if no corresponding test file exists (`check-test-exists.sh`). Language-universal: supports TS/JS, Python, Go, Rust, Ruby, Java, Kotlin, Elixir, Swift, Dart, C#, Scala, C/C++, Haskell, Zig. Write the test first.
 - **PostToolUse(Write|Edit):** Auto-formats code files using the detected formatter for the file's language (Biome/ESLint for JS/TS, ruff/black for Python, rustfmt for Rust, gofmt for Go, etc.). Skips silently if no formatter found; exit 2 on unfixable errors. Then verifies INVARIANTS.md rules — blocks if any machine-verifiable invariant is violated (`check-invariants.sh`).
-- **Stop:** Runs static type checking for the detected project language (tsc/tsgo for TypeScript, cargo check for Rust, go vet for Go, mypy/pyright for Python, etc.). Reminds to run /compound when PRD tasks complete (exit 2 if compound not run). Enforces Anti-Premature Completion Protocol — blocks if task marked complete without verification evidence (`verify-completion.sh`).
+- **Stop:** Runs end-of-turn-typecheck for the detected project language (tsc/tsgo for TypeScript, cargo check for Rust, go vet for Go, mypy/pyright for Python, etc.). compound reminder — blocks if PRD tasks complete but /compound not run. Enforces Anti-Premature Completion Protocol — blocks if task marked complete without verification evidence (`verify-completion.sh`).
 - **Notification:** Desktop alert when agent needs attention (no-op in proot)
 
 Anti-Goodhart verification is enforced by sprint-executor Step 8, orchestrator Step 8.5, and plan-build-test Phase 5.5 — not by hooks.
 
-- **Hard block** (always denied): `rm -rf /`, `rm -rf` on system directories (`/etc`, `/usr`, `/var`, `/home`, etc.), `dd`, fork bombs
-- **Soft block** (warns and asks user for confirmation):
+- **Hard block** (`permissionDecision: "deny"` — always denied, no user override): `rm -rf /`, `rm -rf` on system directories (`/etc`, `/usr`, `/var`, `/home`, etc.), `dd`, fork bombs
+- **Soft block** (`permissionDecision: "ask"` — prompts user for confirmation):
   - Destructive git: `git push --force`, `git push -f`, `git push --force-with-lease`, `git push ... main/master`, `git reset --hard`, `git checkout .`, `git restore .`, `git branch -D`, `git clean -f`, `git stash drop/clear`
   - Package manager mismatch: `npm`/`npx` blocked only when `pnpm-lock.yaml` exists (project-aware detection)
 
-Soft blocks exit 2 with a descriptive message — the user can re-approve if the operation is genuinely required.
+Hard blocks use `deny()` → user cannot override. Soft blocks use `ask()` → Claude Code prompts the user to approve or reject.
 
 ---
 
@@ -386,26 +386,9 @@ Full evaluation checklists (Stack Evaluation, Diagnostic Loop, Spec Self-Evaluat
 
 ## HARNESS & TOOLING
 
-### Model Assignment Matrix (adaptive — evolves via `~/.claude/evolution/model-performance.json`)
+### Model Assignment
 
-| Task Type                                     | Model    |
-| --------------------------------------------- | -------- |
-| File scanning, discovery, dependency analysis | `haiku`  |
-| Simple fixes (lint, format, typos, CSS)       | `haiku`  |
-| Session learnings compilation                 | `haiku`  |
-| Standard implementation                       | `sonnet` |
-| Bug fix implementation                        | `sonnet` |
-| Test writing                                  | `sonnet` |
-| Verification & regression scan                | `sonnet` |
-| Sprint orchestration (deterministic checklist) | `sonnet` |
-| Complex/multi-file refactoring                | `opus`   |
-| Architectural decisions                       | `opus`   |
-| Merge conflict resolution (>3 files)          | `opus`   |
-
-**Adaptation rules:** After 10+ data points per task type, compound checks `model-performance.json`:
-- If first-try success rate < 70% → propose upgrade to next model tier
-- If first-try success rate > 90% → propose downgrade to save cost
-- Changes require user approval; logged in `~/.claude/evolution/workflow-changelog.md`
+Default: haiku for scanning/simple fixes, sonnet for implementation/tests/orchestration, opus for complex refactoring/architecture/merge conflicts. Adaptive — evolves via `~/.claude/evolution/model-performance.json`. Full matrix and adaptation rules: `~/.claude/docs/model-assignment.md`.
 
 ### Parallel Execution with Worktrees
 
@@ -419,16 +402,6 @@ Full evaluation checklists (Stack Evaluation, Diagnostic Loop, Spec Self-Evaluat
 **Execution:** Spawn all batch agents in a single message. Each uses `isolation: worktree`. Worktree agents must NOT modify coordination files or install dependencies.
 
 **Merge Protocol:** Merge each branch sequentially. Conflicts: spawn opus agent. After merges: run build. Build fails: spawn sonnet agent to fix.
-
-### Hooks as Enforcement Layer
-
-`~/.claude/settings.json` contains hooks that guarantee behavior CLAUDE.md can only suggest:
-
-- **PreToolUse(Bash):** Block destructive commands (rm -rf, force push, deploy)
-- **PreToolUse(Write|Edit):** TDD hard gate — block production code edits without corresponding test file (`check-test-exists.sh`)
-- **PostToolUse(Write|Edit):** Auto-format after file changes (TS/JS files only, skips generated dirs). Verify INVARIANTS.md rules — block if any invariant violated (`check-invariants.sh`)
-- **Stop:** Type-check at end of turn (skips if no code was written), compound reminder (warns if task complete but /compound not run), anti-premature completion gate (blocks if task marked complete without verification evidence — `verify-completion.sh`)
-- **Notification:** Desktop alert when agent needs attention
 
 ### Code Intelligence
 
@@ -655,50 +628,4 @@ After every task, evaluate whether documentation needs updating (part of compoun
 
 ## PROOT-DISTRO ARM64 ENVIRONMENT
 
-**Auto-detection:** If `uname -r` contains `PRoot-Distro` AND `uname -m` = `aarch64`, all rules in this section are ACTIVE. Three layers handle proot:
-- **settings.json env:** Sets `NODE_OPTIONS`, `CHOKIDAR_USEPOLLING`, `WATCHPACK_POLLING` globally (harmless for non-Node.js projects)
-- **proot-preflight.sh:** Runs on first Bash command per session; language-aware warnings (Node.js checks only run if package.json exists)
-- **worktree-preflight.sh:** Called by orchestrator Step 0; detects all project languages, sets env vars and installs deps per-language
-
-**Full reference:** `~/.claude/docs/proot-distro-environment.md` and `~/.claude/docs/universal-workflow-guide.md`
-
-### Mandatory Rules (when proot-distro detected)
-
-1. **NEVER attempt `playwright install chromium`** or `browser_take_screenshot` — Chromium doesn't run in proot ARM64. Use `browser_snapshot` (accessibility tree) instead.
-2. **NEVER trust dependency install blindly** — For Node.js: check `.npmrc` for `node-linker=hoisted` first. After install, verify: `find node_modules/.bin -type l ! -exec test -e {} \; -print | head -5`
-3. **NEVER set tight timeouts** — Everything runs 2-5x slower. Multiply expected times by 3x minimum.
-4. **NEVER use Lighthouse/PageSpeed as quality gates** — Performance scores are unreliable in proot. Mark as `BLOCKED: proot-distro ARM64`.
-5. **NEVER rely on `inotify`** — Polling env vars are set globally in `settings.json`.
-6. **ALWAYS check for SST state locks** before deploy: `ls .sst/lock* 2>/dev/null`
-7. **NODE_OPTIONS is set globally** in `settings.json` — no manual export needed (harmless for non-Node.js).
-8. **ALWAYS use retry-with-backoff for external APIs** — `source ~/.claude/hooks/retry-with-backoff.sh`
-
-### Known Native Module Failures (Node.js)
-
-These packages have native binaries that WILL fail in proot-distro:
-- `@parcel/watcher` → use `PARCEL_WATCHER_BACKEND=fs-events` or JS fallback
-- `@rollup/rollup-linux-arm64-gnu` → use `--ignore-scripts` and rebuild selectively
-- `sharp` → use JS-based image processing alternatives
-- `turbo` (native) → use non-native mode
-- Any `node-gyp` compilation → prefer JS alternatives
-
-### Proot Considerations for Other Languages
-
-| Language | Issue | Workaround |
-|----------|-------|------------|
-| Rust | Long compile times, may OOM | `cargo check` over `cargo build`, `codegen-units = 1` |
-| Go | `/proc/self/exe` → `/.l2s/` path translation | Copy resource files to `/.l2s/` |
-| Python | No known issues | Works well |
-| Java | JVM startup slow | Gradle daemon, increase memory |
-
-### Go Binary /.l2s/ Fix
-
-Go binaries resolve libs via `/proc/self/exe`, which proot translates to `/.l2s/`. Copy required resource files there:
-```bash
-if [ -d "/.l2s" ]; then cp /path/to/lib/*.d.ts /.l2s/; fi
-```
-Already handled for tsgo in `end-of-turn-typecheck.sh`.
-
-### Error Pattern → Automatic Response
-
-Full error pattern table with root causes and fixes: `~/.claude/docs/proot-distro-environment.md`. Key patterns to recognize immediately: `ENOENT .bin/` (broken symlink → `pnpm install`), `spawn EACCES` (binary not executable → JS alternative), `heap out of memory` (→ `NODE_OPTIONS`), `Chromium not found` (→ `browser_snapshot` MCP), `SIGBUS/SIGSEGV` on native binary (→ JS fallback).
+Auto-detected via `uname -r` containing `PRoot-Distro`. Three layers: settings.json env vars, proot-preflight.sh (per-session warnings), worktree-preflight.sh (per-sprint setup). Full rules, native module failures, language-specific workarounds, and error patterns: `~/.claude/docs/proot-distro-environment.md`.

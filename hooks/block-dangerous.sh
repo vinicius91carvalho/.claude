@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'echo "HOOK CRASH: $0 line $LINENO" >&2; exit 2' ERR
 
 # Read JSON input and extract command using bash builtins (avoids jq startup cost)
 INPUT=$(cat)
@@ -18,13 +19,32 @@ if [ -z "$COMMAND" ]; then
   exit 0
 fi
 
-# Helper to deny with reason
+# Source shared logger
+source ~/.claude/hooks/lib/hook-logger.sh 2>/dev/null || true
+
+# Helper to hard-deny with reason (catastrophic actions — no user override)
 deny() {
+  log_hook_event "block-dangerous" "denied" "$1"
   cat >&2 <<EOJSON
 {
   "hookSpecificOutput": {
     "hookEventName": "PreToolUse",
     "permissionDecision": "deny",
+    "permissionDecisionReason": "$1"
+  }
+}
+EOJSON
+  exit 2
+}
+
+# Helper to soft-block with reason (destructive but legitimate — user can approve)
+ask() {
+  log_hook_event "block-dangerous" "asked" "$1"
+  cat >&2 <<EOJSON
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "ask",
     "permissionDecisionReason": "$1"
   }
 }
@@ -99,37 +119,42 @@ fi
 # === SOFT BLOCKS: Destructive git ===
 
 if [[ "$COMMAND" =~ git[[:space:]]+push[[:space:]].*(-f[[:space:]]|-f$|--force[[:space:]]|--force$|--force-with-lease) ]]; then
-  deny "SOFT BLOCK: git force push detected — may overwrite remote history. Re-approve if intentional."
+  ask "SOFT BLOCK: git force push detected — may overwrite remote history. Re-approve if intentional."
+fi
+
+# Force push via + refspec prefix (e.g., git push origin +main)
+if [[ "$COMMAND" =~ git[[:space:]]+push[[:space:]] ]] && [[ "$COMMAND" =~ [[:space:]]\+[a-zA-Z] ]]; then
+  ask "SOFT BLOCK: git push with + refspec (force push) detected. Re-approve if intentional."
 fi
 
 # Match "git push ... main/master" with any number of flags/options before the branch name
 # Catches: git push origin main, git push -u origin main, git push --set-upstream origin main
 if [[ "$COMMAND" =~ git[[:space:]]+push[[:space:]] ]] && [[ "$COMMAND" =~ [[:space:]](main|master)([[:space:]]|$) ]]; then
-  deny "SOFT BLOCK: git push to main/master — use a PR instead. Re-approve if intentional."
+  ask "SOFT BLOCK: git push to main/master — use a PR instead. Re-approve if intentional."
 fi
 
 if [[ "$COMMAND" =~ git[[:space:]]+reset[[:space:]]+--hard ]]; then
-  deny "SOFT BLOCK: git reset --hard — may discard uncommitted work. Re-approve if intentional."
+  ask "SOFT BLOCK: git reset --hard — may discard uncommitted work. Re-approve if intentional."
 fi
 
 if [[ "$COMMAND" =~ git[[:space:]]+checkout[[:space:]]+\.[[:space:]]*$ ]]; then
-  deny "SOFT BLOCK: git checkout . — discards all unstaged changes. Re-approve if intentional."
+  ask "SOFT BLOCK: git checkout . — discards all unstaged changes. Re-approve if intentional."
 fi
 
 if [[ "$COMMAND" =~ git[[:space:]]+restore[[:space:]]+\.[[:space:]]*$ ]]; then
-  deny "SOFT BLOCK: git restore . — discards all unstaged changes. Re-approve if intentional."
+  ask "SOFT BLOCK: git restore . — discards all unstaged changes. Re-approve if intentional."
 fi
 
 if [[ "$COMMAND" =~ git[[:space:]]+branch[[:space:]]+-D ]]; then
-  deny "SOFT BLOCK: git branch -D — force-deletes branch. Re-approve if intentional."
+  ask "SOFT BLOCK: git branch -D — force-deletes branch. Re-approve if intentional."
 fi
 
 if [[ "$COMMAND" =~ git[[:space:]]+clean[[:space:]]+-[a-zA-Z]*f ]]; then
-  deny "SOFT BLOCK: git clean -f — removes untracked files. Re-approve if intentional."
+  ask "SOFT BLOCK: git clean -f — removes untracked files. Re-approve if intentional."
 fi
 
 if [[ "$COMMAND" =~ git[[:space:]]+stash[[:space:]]+(drop|clear) ]]; then
-  deny "SOFT BLOCK: git stash drop/clear — permanently discards stashed changes. Re-approve if intentional."
+  ask "SOFT BLOCK: git stash drop/clear — permanently discards stashed changes. Re-approve if intentional."
 fi
 
 # === SOFT BLOCKS: Package manager enforcement ===
@@ -139,11 +164,11 @@ fi
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-${PWD:-$(pwd)}}"
 if [ -f "$PROJECT_DIR/pnpm-lock.yaml" ] || [ -f "$PROJECT_DIR/pnpm-workspace.yaml" ]; then
   if [[ "$COMMAND" =~ (^|[[:space:]])npm[[:space:]]+(install|run|exec|start|test|build|ci|init)([[:space:]]|$) ]]; then
-    deny "SOFT BLOCK: npm detected — this project uses pnpm (pnpm-lock.yaml found). Use pnpm instead."
+    ask "SOFT BLOCK: npm detected — this project uses pnpm (pnpm-lock.yaml found). Use pnpm instead."
   fi
 
   if [[ "$COMMAND" =~ (^|[[:space:]])npx[[:space:]]+ ]]; then
-    deny "SOFT BLOCK: npx detected — this project uses pnpm (pnpm-lock.yaml found). Use pnpm dlx instead."
+    ask "SOFT BLOCK: npx detected — this project uses pnpm (pnpm-lock.yaml found). Use pnpm dlx instead."
   fi
 fi
 

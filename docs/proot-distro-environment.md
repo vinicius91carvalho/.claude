@@ -66,17 +66,9 @@ node node_modules/<package>/bin/<tool>.js
 find node_modules/.bin -type l ! -exec test -e {} \; -print 2>/dev/null | head -5
 ```
 
-### 3. Playwright / Browser Automation (LIMITATION)
+### 3. Playwright / Browser Automation (WORKS)
 
-**Problem:** Chromium cannot run in proot-distro ARM64. Playwright `browser.launch()` fails. Screenshots require a running browser.
-
-**Workaround:**
-- Use **Playwright MCP server** with `browser_snapshot` (accessibility tree) instead of `browser_take_screenshot`
-- For E2E tests that require screenshots: mark as `BLOCKED` in verification, not `PASS`
-- Use `curl`/`wget` for basic HTTP endpoint testing instead of browser-based tests
-- For visual testing, take screenshots on a real CI environment
-
-**Prevention:** Never attempt `playwright install chromium` or `browser_take_screenshot` in this environment. Skip Playwright-dependent test phases and document them as `BLOCKED: proot-distro ARM64 — no Chromium support`.
+Chromium IS available in proot-distro ARM64 at `/usr/bin/chromium`. Playwright tests, `browser_take_screenshot`, and `browser_snapshot` all work normally. Use `pnpm exec playwright test` as in any other environment. No special workarounds needed.
 
 ### 4. tsgo Binary Path Resolution (HANDLED)
 
@@ -247,7 +239,7 @@ echo "=== Preflight Complete ==="
 
 | Action | Why | Alternative |
 |--------|-----|-------------|
-| `playwright install chromium` | No Chromium on ARM64 proot | Use MCP browser_snapshot |
+| `playwright install chromium` | Already installed at /usr/bin/chromium | Just run `pnpm exec playwright test` |
 | `pnpm install` without checking .npmrc | Native modules will fail | Add ignore-scripts, verify symlinks |
 | Lighthouse CI in this env | Unreliable perf scores | Run on real CI only |
 | `node-gyp rebuild` | Most native builds fail | Use JS alternatives |

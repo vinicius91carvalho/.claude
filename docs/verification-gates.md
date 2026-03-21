@@ -92,8 +92,7 @@ by the orchestrator after merge (changed in v3 to eliminate redundant dev server
 | Screenshots captured | All routes at all viewports | Screenshot count |
 | Console errors | 0 errors | Error count from test output |
 
-**proot-distro note:** Chromium doesn't run in proot. Use `browser_snapshot` (accessibility tree)
-instead of `browser_take_screenshot`. Mark screenshot tests as `BLOCKED: proot-distro ARM64`.
+**proot-distro note:** Chromium works in proot (`/usr/bin/chromium`). Playwright tests, screenshots, and `browser_take_screenshot` all function normally.
 
 ---
 

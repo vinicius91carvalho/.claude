@@ -13,12 +13,12 @@ proot-distro is a user-space process emulator. It doesn't have a real kernel —
 │  ✗ Native binaries may crash (SIGSEGV, SIGBUS)          │
 │  ✗ inotify doesn't work (no file watching)              │
 │  ✗ /proc is limited                                     │
-│  ✗ Chromium cannot run (no GPU, limited syscalls)        │
 │  ✗ Everything runs 2-5x slower                          │
 │                                                          │
+│  ✓ Chromium works (/usr/bin/chromium)                    │
+│  ✓ Playwright tests + screenshots work                   │
 │  ✓ Polling-based file watching works                     │
 │  ✓ JavaScript-only alternatives work                     │
-│  ✓ browser_snapshot (accessibility tree) works            │
 │  ✓ python3 http.server works                             │
 │  ✓ Node.js with increased memory works                   │
 └──────────────────────────────────────────────────────────┘
@@ -36,7 +36,7 @@ If `uname -r` contains `PRoot-Distro` AND `uname -m` = `aarch64`, all proot rule
 
 | Rule | Why |
 |---|---|
-| NEVER `playwright install chromium` | Chromium doesn't run in proot. Use `browser_snapshot` instead. |
+| Chromium works — use `pnpm exec playwright test` | Chromium is at `/usr/bin/chromium`. Playwright runs normally. |
 | NEVER trust `pnpm install` blindly | Check `.npmrc` for `node-linker=hoisted`. Verify symlinks after install. |
 | NEVER set tight timeouts | Everything runs 2-5x slower. Multiply by 3x minimum. |
 | NEVER use Lighthouse as quality gate | Scores unreliable in proot. Mark as `BLOCKED: proot-distro ARM64`. |
@@ -62,7 +62,7 @@ These packages have native binaries that WILL fail in proot-distro:
 | `ENOENT .bin/` | Broken symlink in node_modules | `pnpm install` with correct `.npmrc` |
 | `spawn EACCES` | Binary not executable | Use JS alternative |
 | `heap out of memory` | Default Node.js limit too low | `NODE_OPTIONS=--max-old-space-size=2048` (set globally) |
-| `Chromium not found` | Can't run Chromium in proot | Use `browser_snapshot` MCP tool |
+| `Chromium not found` | Playwright can't find browser | Run `pnpm exec playwright install chromium` or use system `/usr/bin/chromium` |
 | `SIGBUS/SIGSEGV` on native binary | proot syscall translation failure | Use JS fallback |
 | `inotify_add_watch` | inotify not available | Polling already enabled globally |
 
@@ -78,11 +78,7 @@ Already handled for tsgo in `end-of-turn-typecheck.sh`.
 
 ## Playwright in proot
 
-Chromium-based browser automation doesn't work in proot. Instead:
-
-- Use `browser_snapshot` (accessibility tree) — works perfectly
-- Never use `browser_take_screenshot` — requires Chromium
-- E2E tests should use accessibility-tree-based assertions
+Chromium works in proot-distro ARM64 (`/usr/bin/chromium`). Playwright tests, screenshots, and browser automation all function normally. Use `pnpm exec playwright test` as in any other environment.
 
 ## Performance Expectations
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'echo "HOOK CRASH: $0 line $LINENO" >&2; exit 2' ERR
 
 # Stop hook: Run static type checking at end of turn.
 #

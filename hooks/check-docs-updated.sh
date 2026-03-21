@@ -6,6 +6,7 @@
 # Exit codes: 0 = pass (docs updated or no workflow changes), 2 = block (docs stale)
 
 set -euo pipefail
+trap 'echo "HOOK CRASH: $0 line $LINENO" >&2; exit 2' ERR
 
 # Read JSON input from stdin (same pattern as block-dangerous.sh)
 INPUT=$(cat)
@@ -88,7 +89,10 @@ if echo "$CHANGED_FILES" | grep -qE '^workflow/'; then
   DOCS_UPDATED=true
 fi
 
+source ~/.claude/hooks/lib/hook-logger.sh 2>/dev/null || true
+
 if [ "$DOCS_UPDATED" = "false" ]; then
+  log_hook_event "check-docs-updated" "blocked" "workflow changed (${DOC_CATEGORIES## }) without doc updates"
   echo "BLOCKED: Workflow files changed (${DOC_CATEGORIES## }) but no documentation updated." >&2
   echo "" >&2
   echo "Changed workflow files:" >&2

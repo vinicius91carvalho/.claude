@@ -144,6 +144,13 @@ Agent(description: "Sprint N: [title]",
 **For parallel batches:** spawn ALL sprint-executor agents simultaneously in a single message.
 **For sequential batches:** spawn one at a time.
 
+**IMPORTANT: Worktree isolation vs sequential sprints.** If Sprint N and Sprint N+1 share
+files in `files_to_modify`, they MUST run sequentially in the main working directory, NOT
+in worktrees. Worktrees branch from HEAD (the last commit), not from the working directory.
+When Sprint N's changes are uncommitted, Sprint N+1 in a worktree starts from the
+pre-Sprint-N state, causing silent data loss. Only use `isolation: "worktree"` for sprints
+that are truly independent (no overlapping `files_to_modify` or `files_to_create`).
+
 The sprint-executor prompt MUST include:
 
 - The full content of the sprint spec file (NOT the PRD — just the sprint spec)
@@ -336,7 +343,7 @@ both obvious failures AND "200 with broken content" failures early.**
    violation before marking done.
 8. **Write completion evidence marker** (required by `verify-completion.sh` Stop hook):
    ```bash
-   cat > /tmp/.claude-completion-evidence-${CLAUDE_SESSION_ID:-unknown} << 'EOF'
+   cat > ~/.claude/state/.claude-completion-evidence-${CLAUDE_SESSION_ID:-unknown} << 'EOF'
    plan_reread: true
    acceptance_criteria_cited: true
    dev_server_verified: true

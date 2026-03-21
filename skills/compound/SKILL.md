@@ -155,7 +155,7 @@ description: >
 
 9. **Write completion marker** so the compound-reminder hook knows compound ran:
    ```bash
-   touch "/tmp/.claude-compound-done-${CLAUDE_SESSION_ID:-unknown}"
+   touch "${HOME}/.claude/state/.claude-compound-done-${CLAUDE_SESSION_ID:-unknown}"
    ```
 
 10. **Workflow Integrity Gate** — if compound modified ANY workflow files (`~/.claude/` — hooks,

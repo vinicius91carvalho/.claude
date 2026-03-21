@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'echo "HOOK CRASH: $0 line $LINENO" >&2; exit 2' ERR
 
 # Stop hook: Enforce Anti-Premature Completion Protocol as a hard gate.
 #
@@ -8,7 +9,7 @@ set -euo pipefail
 # Without evidence, the agent is BLOCKED from finishing — preventing the "Three
 # Completion Lies" (tests pass ≠ works, build complete ≠ runs, items done ≠ verified).
 #
-# Evidence marker: /tmp/.claude-completion-evidence-${CLAUDE_SESSION_ID}
+# Evidence marker: ~/.claude/state/.claude-completion-evidence-${CLAUDE_SESSION_ID}
 # Written by orchestrator Step 8.5 / plan-build-test Phase 5.5 after performing
 # full verification (plan re-read, acceptance criteria citation, dev server check,
 # non-privileged user testing).
@@ -67,7 +68,7 @@ if [ "$RECENTLY_COMPLETED" = false ]; then
 fi
 
 # Check for completion evidence marker
-EVIDENCE_MARKER="/tmp/.claude-completion-evidence-${CLAUDE_SESSION_ID:-unknown}"
+EVIDENCE_MARKER="${HOME}/.claude/state/.claude-completion-evidence-${CLAUDE_SESSION_ID:-unknown}"
 
 if [ -f "$EVIDENCE_MARKER" ]; then
   # Verify the evidence file has required fields
