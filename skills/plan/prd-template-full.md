@@ -44,9 +44,31 @@ THEN [observable result]
 - Stack: [Languages, frameworks, libraries]
 - Architecture: [Patterns to follow, files to reference]
 - Performance: [Budgets if applicable]
-- Security: [Requirements]
 
-## 9. Shared Contracts
+## 9. Architecture Decisions
+
+Significant decisions made in this PRD. Decisions rated "High" reversal cost deserve extra scrutiny during review.
+
+| Decision | Reversal Cost | Alternatives Considered | Rationale |
+|----------|--------------|------------------------|-----------|
+| [What was decided] | Low/Med/High | [What else was considered, why rejected] | [Why this choice] |
+
+## 10. Security Boundaries
+
+- **Auth model:** [What auth is needed? Which endpoints/pages are protected?]
+- **Trust boundaries:** [What is user-controlled input? Where does trusted/untrusted data cross?]
+- **Data sensitivity:** [PII, credentials, tokens — what is handled and how?]
+- **Tenant isolation:** [If multi-tenant: how is data segregated?]
+
+## 11. Data Model (include if feature involves schema changes or new data entities)
+
+**Access Patterns (define BEFORE schema):**
+1. [Who queries what, how often, what filters, what latency requirement]
+
+**Entities:** [Name, key attributes, relationships]
+**Schema justification:** [How the chosen schema serves each access pattern above]
+
+## 12. Shared Contracts
 
 Define interfaces, types, design tokens, and component APIs that multiple sprints will consume. This is the coordination mechanism that replaces cross-sprint file sharing.
 
@@ -55,7 +77,7 @@ Define interfaces, types, design tokens, and component APIs that multiple sprint
 - **Data types:** [Shared TypeScript types, schemas, API contracts]
 - **Layout structure:** [Page layout, grid system, breakpoints]
 
-## 10. Architecture Invariant Registry
+## 13. Architecture Invariant Registry
 
 Cross-cutting concepts that are defined in one bounded context and consumed by others.
 Each entry becomes a machine-verifiable contract in INVARIANTS.md.
@@ -68,21 +90,21 @@ Each entry becomes a machine-verifiable contract in INVARIANTS.md.
 
 **Dependency direction:** If A depends on B, B owns the contract.
 
-## 11. Open Questions
+## 14. Open Questions
 
 - [ ] [Known unknown — who should answer?]
 
-## 12. Uncertainty Policy
+## 15. Uncertainty Policy
 
 When uncertain: [Flag / Guess-and-document / Stop]
 When [X] conflicts with [Y]: prefer [X/Y]
 
-## 13. Verification
+## 16. Verification
 
 - Deterministic: [Tests, linters, type checks]
 - Manual: [What human reviewer should check]
 
-## 14. Sprint Decomposition
+## 17. Sprint Decomposition
 
 Maximum 5 sprints. Each sprint is extracted into its own file under `sprints/` during planning.
 
@@ -128,10 +150,10 @@ Each sprint spec file follows this structure (see sprint-spec-template.md):
 - [ ] [Test command]
 - [ ] [Build command]
 
-## 15. Execution Log
+## 18. Execution Log
 
 [Filled during execution — tracked in progress.json]
 
-## 16. Learnings (filled after all sprints complete)
+## 19. Learnings (filled after all sprints complete)
 
 [Compound step output]

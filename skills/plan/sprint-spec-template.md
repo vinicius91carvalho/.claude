@@ -29,7 +29,7 @@
 
 ### Shared Contracts (consume from prior sprints or PRD)
 
-- [Interface/type name from PRD Section 9]
+- [Interface/type name from PRD Section 12]
 - [Design token set]
 
 ### Consumed Invariants (from INVARIANTS.md)

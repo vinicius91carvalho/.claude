@@ -29,11 +29,15 @@ description: >
      f. Fill "Context Loaded" section with what you learned from docs
      g. Write PRD using appropriate template (read from `~/.claude/skills/plan/prd-template-minimal.md` for Standard, `~/.claude/skills/plan/prd-template-full.md` for PRD+Sprint)
      h. Run **Spec Self-Evaluator** — spawn a **separate haiku agent** (different context = different perspective) to evaluate the spec:
-        > Read `~/.claude/docs/evaluation-reference.md` for the 14-point Spec Self-Evaluator checklist.
+        > Read `~/.claude/docs/evaluation-reference.md` for the 14-point Spec Self-Evaluator checklist AND the Cross-Section Validation checks.
         > Then read the PRD at [spec.md path].
-        > Score each of the 14 criteria as PASS or FAIL with a brief reason.
-        > Return: total score, list of failures, and specific suggestions to fix each failure.
-        Must score 11+ out of 14 to proceed. If below 11: revise the PRD to address the failures, then re-evaluate.
+        > Phase 1: Score each of the 14 per-section criteria as PASS or FAIL with a brief reason.
+        > Phase 2: Run the 3 cross-section validation checks:
+        >   1. Architecture Decisions ↔ Security Boundaries (contradictions?)
+        >   2. Data Model ↔ Access Patterns (technology fit?)
+        >   3. Security Boundaries ↔ Sprint Decomposition (mitigations propagated?)
+        > Return: total score, list of failures, cross-section contradictions, and specific suggestions to fix each.
+        Must score 11+ out of 14 AND have zero cross-section contradictions to proceed. If below threshold: revise the PRD, then re-evaluate.
         Using a separate agent prevents the author from grading their own homework.
 
 4. **If PRD+Sprint — Extract Sprint Specs (MANDATORY):**
@@ -75,11 +79,16 @@ description: >
 
    d. **Validate sprint count**: maximum 5 sprints. If >5, the scope is too large — split into separate PRDs by independent deliverable (test: "could these be built by teams who never talk?"). If they share files, keep together and reduce scope.
 
-5. **Sprint file boundary validation rules:**
-   - A file MUST NOT appear in `files_to_create` or `files_to_modify` in two sprints of the same batch
-   - A file in `files_to_create` in Sprint N can appear in `files_to_modify` in Sprint N+1 (sequential dependency)
-   - `files_read_only` can overlap freely — reading is safe
-   - If validation fails: restructure batches to make conflicting sprints sequential
+5. **Sprint boundary validation (deterministic — MANDATORY after step 4):**
+
+   Run `~/.claude/hooks/validate-sprint-boundaries.sh <prd-directory>` to verify:
+   - No file appears in `files_to_create`/`files_to_modify` in two parallel sprints (same batch)
+   - Every `files_to_modify` file either exists or is created by an earlier sprint
+   - Sprint dependency graph has no cycles
+   - INVARIANTS.md verify commands reference reachable files
+
+   If validation fails: restructure batches/dependencies to fix violations, then re-run.
+   `files_read_only` can overlap freely — reading is safe.
 
 6. **If PRD+Sprint — Create INVARIANTS.md (MANDATORY):**
 

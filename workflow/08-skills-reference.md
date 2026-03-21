@@ -8,8 +8,12 @@ Skills are auto-invocable workflows that live in `~/.claude/skills/`. Each skill
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                          SKILL PIPELINE                                │
 │                                                                        │
+│    /create-project    Greenfield projects: discovery interview,        │
+│       │               architecture defaults, full PRD generation.      │
+│       │               (Alternative to /plan for new projects)          │
+│       │                                                                │
 │    /plan              Generate PRD only. For when you want to plan     │
-│       │               without executing.                               │
+│       │               a task within an existing project.               │
 │       ▼                                                                │
 │    /plan-build-test   Smart entry point: discover tasks, plan if       │
 │       │               needed, execute with agent teams, verify         │
@@ -31,8 +35,55 @@ Skills are auto-invocable workflows that live in `~/.claude/skills/`. Each skill
 │                      sessions. Reviews model performance, error        │
 │                      patterns, rule staleness.                         │
 │                                                                        │
+│    STANDALONE SKILLS (not part of the main pipeline):                  │
+│    /playwright-stealth  Anti-detection browsing for own content        │
+│                                                                        │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## /create-project — Greenfield Project PRD
+
+**Trigger:** "new project", "start a project", "build me an app", "create a new API", "I have an idea for".
+
+Creates a new project from scratch with a production-grade PRD. Different from `/plan` which handles tasks within existing projects — this covers market strategy, tech stack selection, architecture decisions, security model, data design, and implementation roadmap.
+
+### Phases
+
+```
+Phase 0: Discovery Interview
+         16 structured questions across 4 areas:
+         ├── Product & Market (what, who, competitors, benchmark)
+         ├── Technical Constraints (stack, hard constraints, integrations)
+         ├── Scope & Timeline (MVP, timeline, team)
+         └── Architecture Philosophy (monolith vs modular, deploy, tenancy)
+
+Phase 1: Parallel Deep Analysis (5 tracks)
+         ├── Track 1: Market & Strategy (positioning, gap analysis)
+         ├── Track 2: Architecture ADRs (adversarial debate: speed vs scale)
+         ├── Track 3: Security & Compliance (STRIDE threat model, worst-case)
+         ├── Track 4: Module & Data Design (bounded contexts, query-first)
+         └── Track 5: Implementation Planning (sprints, MVP, testing pyramid)
+
+Phase 2: Cross-Agent Consolidation
+         ├── Consistency check (ADRs vs data model vs security)
+         ├── Gap check (missing owners, unanalyzed boundaries)
+         ├── Feasibility check (timeline vs scope vs team)
+         └── Resolve contradictions explicitly
+
+Phase 3: PRD Generation (single markdown file, 20+ sections)
+
+Phase 4: Sprint Extraction (compatible with /plan-build-test)
+         ├── Sprint specs, progress.json, INVARIANTS.md
+         └── Build Candidate tag
+```
+
+**Architecture defaults:** When the user says "recommend", battle-tested defaults are applied (modular monolith, TypeScript, Hono, DynamoDB, Clean Architecture). Every default can be overridden. Defaults are presented for confirmation before proceeding.
+
+**Quality gate:** 10-point checklist + Spec Self-Evaluator (11+/14 score required).
+
+**Output:** Compatible with `/plan-build-test` — just run it to start building.
 
 ---
 
@@ -306,6 +357,24 @@ Step 5: Report
 **Key principles:** Concise over verbose. Accurate over complete. Delete wrong docs rather than adding more. Examples over descriptions.
 
 **Trigger:** "update docs", "sync readme", "docs are stale", or auto-invoked when `check-docs-updated.sh` blocks a push.
+
+---
+
+## /playwright-stealth — Anti-Detection Web Browsing
+
+**Trigger:** "stealth browse", "get page content", "check this site", or when accessing sites with bot detection.
+
+Uses Patchright (a Playwright fork that patches CDP-level automation leaks) with Xvfb virtual display for headed mode. Intended for accessing your own content on sites where automated browsers are incorrectly blocked.
+
+### How It Works
+
+| Layer | Detection Signal | Fix |
+|-------|-----------------|-----|
+| CDP Protocol | `Runtime.enable` leak | Patchright patches at source level |
+| Browser Identity | `HeadlessChrome` in user agent | Xvfb + headed mode — reports standard Chrome |
+| Automation Flags | `navigator.webdriver=true` | Patchright removes flag; init script patches |
+
+**Not for:** Unauthorized scraping of third-party data. This is personal tooling for content verification.
 
 ---
 

@@ -42,3 +42,15 @@ Re-enter at the failing layer. Often the fix is adding context or clarifying int
 - [ ] Could a different agent execute this unambiguously?
 
 **Scoring:** 11-14 pass = ready. 7-10 = revise weak areas. Below 7 = fundamental rethink.
+
+## Cross-Section Validation (run after per-section evaluation passes)
+
+Three targeted checks for internal PRD consistency. These catch contradictions that per-section evaluation cannot — each section may score well independently while conflicting with another.
+
+1. **Architecture Decisions ↔ Security Boundaries:** Do any architecture decisions contradict security boundary mitigations? (e.g., choosing stateless JWT auth while requiring session revocation; choosing a public API gateway while security boundaries require mTLS between services)
+2. **Data Model ↔ Access Patterns:** Can the data model serve the stated access patterns with the chosen technology? (e.g., schema with heavy JOINs on a database chosen for key-value access; access patterns requiring full-text search with no search index defined)
+3. **Security Boundaries ↔ Sprint Decomposition:** Does every sprint that modifies a trust-boundary file include the relevant security mitigation in its spec? (e.g., a sprint creating an API endpoint without referencing the auth model; a sprint handling PII without referencing data sensitivity controls)
+
+**How to evaluate:** For each check, identify the relevant sections in the PRD and compare them directly. If a contradiction exists, flag it with: which sections conflict, what the contradiction is, and a suggested resolution.
+
+**Scoring:** Any cross-section contradiction is a FAIL requiring PRD revision before execution.

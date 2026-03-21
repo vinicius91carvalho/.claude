@@ -91,11 +91,13 @@ After shipping, `/compound` auto-captures learnings and promotes patterns — ma
 │   └── code-reviewer.md   # Read-only auditor — reports, never fixes
 ├── skills/            # Auto-invocable step-by-step workflows
 │   ├── plan/              # PRD generation (/plan)
+│   ├── create-project/    # Greenfield project PRD with architecture defaults
 │   ├── plan-build-test/   # Local pipeline: discover → plan → execute → verify
 │   ├── ship-test-ensure/  # Deploy: branch → PR → staging → E2E → production
 │   ├── compound/          # Post-task learning capture
 │   ├── workflow-audit/    # Periodic system self-review
-│   └── update-docs/       # Analyze code and update project documentation
+│   ├── update-docs/       # Analyze code and update project documentation
+│   └── playwright-stealth/# Anti-detection web browsing for own content
 ├── hooks/             # Safety enforcement scripts (language-universal)
 │   ├── lib/
 │   │   └── detect-project.sh   # Shared language/project detection (16 languages)
@@ -108,7 +110,11 @@ After shipping, `/compound` auto-captures learnings and promotes patterns — ma
 │   ├── verify-completion.sh   # Blocks premature completion claims
 │   ├── validate-i18n-keys.sh  # Cross-validates i18n keys across locales
 │   ├── verify-worktree-merge.sh # Detects silent overwrites in worktree merges
-│   └── check-docs-updated.sh # Blocks push if workflow changed without doc updates
+│   ├── check-docs-updated.sh # Blocks push if workflow changed without doc updates
+│   ├── proot-preflight.sh    # First-command session setup for proot-distro
+│   ├── worktree-preflight.sh # Language-aware worktree dependency setup
+│   ├── retry-with-backoff.sh # Retry helper for external API calls
+│   └── validate-sprint-boundaries.sh # Validates sprint file boundaries
 ├── test-workflow-mods/# Workflow integrity test suite (123 assertions)
 │   ├── run-tests.sh           # Validates entire ~/.claude/ structure
 │   └── testdata/              # Fixture projects for hook behavioral tests
@@ -117,24 +123,25 @@ After shipping, `/compound` auto-captures learnings and promotes patterns — ma
 │   ├── evaluation-reference.md
 │   ├── anti-patterns-full.md
 │   ├── verification-gates.md
-│   └── project-claude-md-template.md
+│   ├── project-claude-md-template.md
+│   └── vague-requirements-translator.md
 ├── workflow/          # Full documentation (you are here)
 └── evolution/         # Cross-project learning data
-    ├── error-registry.json     # Error patterns across all projects
-    ├── model-performance.json  # Model success rate tracking
-    └── workflow-changelog.md   # System evolution history
+    └── session-postmortems/    # Post-session analysis and learnings
 ```
 
-## The Six Skills
+## Skills
 
 | Skill | What It Does | When to Use |
 |---|---|---|
 | `/plan` | Generates PRD only | "Just plan, don't build yet" |
+| `/create-project` | Greenfield project PRD with discovery interview and architecture defaults | "New project", "start a project", "build me an app" |
 | `/plan-build-test` | Plans, executes with agent teams, verifies locally | "Build this feature / fix this bug" |
 | `/ship-test-ensure` | Branch, PR, staging E2E, production deploy, Lighthouse (optional) | "Ship what I've built" |
 | `/compound` | Captures learnings, updates error registry, evolves system | Auto-invoked after task completion |
 | `/workflow-audit` | Reviews model performance, error patterns, rule staleness | Monthly or after 10+ sessions |
 | `/update-docs` | Analyzes codebase and updates README/docs to match current code | "Update docs", "sync readme", or when push is blocked by stale docs |
+| `/playwright-stealth` | Anti-detection web browsing via Patchright + Xvfb for own content | "Stealth browse", "check this site", sites with bot detection |
 
 **Autonomous pipeline:** `/plan` → review PRD → `/plan-build-test` (autonomous) → manual test → `/ship-test-ensure` (autonomous through staging, confirms before production).
 
@@ -162,6 +169,9 @@ The system uses deterministic hooks — real code that runs before/after every a
 | `validate-i18n-keys.sh` | Pre-commit (via ship-test-ensure) | Cross-validates all i18n t() keys exist in all locale files |
 | `verify-worktree-merge.sh` | Post-merge (via orchestrator) | Detects files silently overwritten by worktree merges |
 | `check-docs-updated.sh` | Every `git push` (PreToolUse) | Blocks push if hooks/skills/agents changed without doc updates |
+| `proot-preflight.sh` | First Bash command per session | Detects proot-distro ARM64, sets env vars, language-aware warnings |
+| `worktree-preflight.sh` | Orchestrator step 0 | Detects project languages, installs deps per-language in worktrees |
+| `validate-sprint-boundaries.sh` | After sprint extraction | Validates no file conflicts between parallel sprints |
 
 All hooks auto-detect the project's language(s) via `hooks/lib/detect-project.sh`. Adding support for a new language means updating one file — see [Universal Workflow Guide](docs/universal-workflow-guide.md).
 
