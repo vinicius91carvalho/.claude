@@ -60,7 +60,7 @@ EOJSON
 
 # Helper to soft-block with reason (destructive but legitimate — user can approve)
 # Uses "deny" instead of "ask" because "ask" is silently ignored in bypassPermissions mode.
-# Creates a pending approval file so the user can approve via: ! ~/.claude/hooks/approve.sh
+# Creates a pending approval file so Claude can approve via AskUserQuestion → approve.sh.
 ask() {
   # Create pending approval file
   mkdir -p "$PENDING_DIR" 2>/dev/null || true
@@ -72,7 +72,7 @@ ask() {
   "hookSpecificOutput": {
     "hookEventName": "PreToolUse",
     "permissionDecision": "deny",
-    "permissionDecisionReason": "$1 To approve, run:  ! ~/.claude/hooks/approve.sh  — then retry the command."
+    "permissionDecisionReason": "SOFT_BLOCK_APPROVAL_NEEDED: $1"
   }
 }
 EOJSON

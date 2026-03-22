@@ -354,11 +354,22 @@ The "Agent NEVER does" column is enforced as PreToolUse hooks in `~/.claude/sett
 Anti-Goodhart verification is enforced by sprint-executor Step 8, orchestrator Step 8.5, and plan-build-test Phase 5.5 — not by hooks.
 
 - **Hard block** (`permissionDecision: "deny"` — always denied, no user override): `rm -rf /`, `rm -rf` on system directories (`/etc`, `/usr`, `/var`, `/home`, etc.), `dd`, fork bombs
-- **Soft block** (`permissionDecision: "ask"` — prompts user for confirmation):
+- **Soft block** (deny + `SOFT_BLOCK_APPROVAL_NEEDED` prefix — interactive approval):
   - Destructive git: `git push --force`, `git push -f`, `git push --force-with-lease`, `git push ... main/master`, `git reset --hard`, `git checkout .`, `git restore .`, `git branch -D`, `git clean -f`, `git stash drop/clear`
   - Package manager mismatch: `npm`/`npx` blocked only when `pnpm-lock.yaml` exists (project-aware detection)
 
-Hard blocks use `deny()` → user cannot override. Soft blocks use `ask()` → Claude Code prompts the user to approve or reject.
+Hard blocks use `deny()` → user cannot override. Soft blocks use `ask()` → returns deny with `SOFT_BLOCK_APPROVAL_NEEDED` prefix.
+
+### Soft Block Interactive Approval Protocol
+
+When a hook returns a denial with `SOFT_BLOCK_APPROVAL_NEEDED:` prefix, you MUST:
+
+1. **Present the reason** to the user clearly
+2. **Ask the user** to approve or deny using AskUserQuestion with yes/no options
+3. **If user approves:** run `~/.claude/hooks/approve.sh` via Bash, then **retry the original blocked command**
+4. **If user denies:** respect the block, do NOT retry, and adjust your approach
+
+NEVER tell the user to manually run `approve.sh`. NEVER skip the interactive prompt. The approval flow is: hook blocks → you ask → user decides → you act.
 
 ---
 
