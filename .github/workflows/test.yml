@@ -27,3 +27,6 @@ jobs:
 
       - name: Run hook-specific tests
         run: bash "$HOME/.claude/hooks/tests/test-block-dangerous.sh"
+
+      - name: Run auto-version tests
+        run: bash "$HOME/.claude/tests/test-auto-version.sh"
