@@ -1,0 +1,29 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout to ~/.claude
+        uses: actions/checkout@v4
+        with:
+          path: .claude
+
+      - name: Move to ~/.claude
+        run: |
+          mv .claude "$HOME/.claude"
+
+      - name: Install dependencies
+        run: sudo apt-get install -y jq
+
+      - name: Run workflow integrity tests
+        run: bash "$HOME/.claude/test-workflow-mods/run-tests.sh"
+
+      - name: Run hook-specific tests
+        run: bash "$HOME/.claude/hooks/tests/test-block-dangerous.sh"
