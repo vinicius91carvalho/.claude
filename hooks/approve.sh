@@ -22,6 +22,7 @@ for f in "$PENDING_DIR"/*; do
   echo "Approving:"
   cat "$f"
   mv "$f" "$APPROVAL_DIR/$(basename "$f")"
+  touch "$APPROVAL_DIR/$(basename "$f")"  # Reset mtime so TTL starts from approval, not pending creation
   count=$((count + 1))
   echo "---"
 done
