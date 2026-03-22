@@ -37,6 +37,7 @@ plugins/
 session-env/
 shell-snapshots/
 tasks/
+!test-workflow-mods/testdata/**/tasks/
 telemetry/
 todos/
 usage-data/

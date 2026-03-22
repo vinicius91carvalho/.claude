@@ -1714,7 +1714,7 @@ run_block_dangerous() {
   local input
   input=$(make_bash_input "$command")
   local exit_code=0
-  echo "$input" | "$HOOKS_DIR/block-dangerous.sh" >/dev/null 2>"$BD_STDERR_FILE" || exit_code=$?
+  echo "$input" | "$HOOKS_DIR/block-dangerous.sh" >"$BD_STDERR_FILE" 2>/dev/null || exit_code=$?
   echo "$exit_code" > "$BD_EXIT_FILE"
 }
 
@@ -1733,10 +1733,10 @@ get_exit_code() {
 run_block_dangerous "rm -rf /"
 DECISION=$(get_permission_decision)
 EXIT=$(get_exit_code)
-if [ "$DECISION" = "deny" ] && [ "$EXIT" = "2" ]; then
+if [ "$DECISION" = "deny" ] && [ "$EXIT" = "0" ]; then
   pass "Hard block: rm -rf / → permissionDecision: deny"
 else
-  fail "Hard block: rm -rf / wrong" "Got decision='$DECISION' exit='$EXIT', expected deny/2"
+  fail "Hard block: rm -rf / wrong" "Got decision='$DECISION' exit='$EXIT', expected deny/0"
 fi
 
 # Test 31.2: rm -rf /* is hard-denied
@@ -1781,121 +1781,121 @@ fi
 run_block_dangerous "git push --force origin feature"
 DECISION=$(get_permission_decision)
 EXIT=$(get_exit_code)
-if [ "$DECISION" = "ask" ] && [ "$EXIT" = "2" ]; then
-  pass "Soft block: git push --force → permissionDecision: ask"
+if [ "$DECISION" = "deny" ] && [ "$EXIT" = "0" ]; then
+  pass "Soft block: git push --force → permissionDecision: deny (with approval mechanism)"
 else
-  fail "Soft block: git push --force wrong" "Got decision='$DECISION' exit='$EXIT', expected ask/2"
+  fail "Soft block: git push --force wrong" "Got decision='$DECISION' exit='$EXIT', expected deny/0"
 fi
 
-# Test 31.7: git push -f is soft-block (ask)
+# Test 31.7: git push -f is soft-block (deny with approval mechanism)
 run_block_dangerous "git push -f origin feature"
 DECISION=$(get_permission_decision)
-if [ "$DECISION" = "ask" ]; then
-  pass "Soft block: git push -f → permissionDecision: ask"
+if [ "$DECISION" = "deny" ]; then
+  pass "Soft block: git push -f → permissionDecision: deny (with approval mechanism)"
 else
-  fail "Soft block: git push -f wrong" "Got decision='$DECISION', expected ask"
+  fail "Soft block: git push -f wrong" "Got decision='$DECISION', expected deny"
 fi
 
-# Test 31.8: git push origin main is soft-block (ask)
+# Test 31.8: git push origin main is soft-block (deny with approval mechanism)
 run_block_dangerous "git push origin main"
 DECISION=$(get_permission_decision)
-if [ "$DECISION" = "ask" ]; then
-  pass "Soft block: git push origin main → permissionDecision: ask"
+if [ "$DECISION" = "deny" ]; then
+  pass "Soft block: git push origin main → permissionDecision: deny (with approval mechanism)"
 else
-  fail "Soft block: git push origin main wrong" "Got decision='$DECISION', expected ask"
+  fail "Soft block: git push origin main wrong" "Got decision='$DECISION', expected deny"
 fi
 
-# Test 31.9: git reset --hard is soft-block (ask)
+# Test 31.9: git reset --hard is soft-block (deny with approval mechanism)
 run_block_dangerous "git reset --hard HEAD~1"
 DECISION=$(get_permission_decision)
-if [ "$DECISION" = "ask" ]; then
-  pass "Soft block: git reset --hard → permissionDecision: ask"
+if [ "$DECISION" = "deny" ]; then
+  pass "Soft block: git reset --hard → permissionDecision: deny (with approval mechanism)"
 else
-  fail "Soft block: git reset --hard wrong" "Got decision='$DECISION', expected ask"
+  fail "Soft block: git reset --hard wrong" "Got decision='$DECISION', expected deny"
 fi
 
-# Test 31.10: git branch -D is soft-block (ask)
+# Test 31.10: git branch -D is soft-block (deny with approval mechanism)
 run_block_dangerous "git branch -D feature-branch"
 DECISION=$(get_permission_decision)
-if [ "$DECISION" = "ask" ]; then
-  pass "Soft block: git branch -D → permissionDecision: ask"
+if [ "$DECISION" = "deny" ]; then
+  pass "Soft block: git branch -D → permissionDecision: deny (with approval mechanism)"
 else
-  fail "Soft block: git branch -D wrong" "Got decision='$DECISION', expected ask"
+  fail "Soft block: git branch -D wrong" "Got decision='$DECISION', expected deny"
 fi
 
-# Test 31.11: git checkout . is soft-block (ask)
+# Test 31.11: git checkout . is soft-block (deny with approval mechanism)
 run_block_dangerous "git checkout ."
 DECISION=$(get_permission_decision)
-if [ "$DECISION" = "ask" ]; then
-  pass "Soft block: git checkout . → permissionDecision: ask"
+if [ "$DECISION" = "deny" ]; then
+  pass "Soft block: git checkout . → permissionDecision: deny (with approval mechanism)"
 else
-  fail "Soft block: git checkout . wrong" "Got decision='$DECISION', expected ask"
+  fail "Soft block: git checkout . wrong" "Got decision='$DECISION', expected deny"
 fi
 
-# Test 31.12: git restore . is soft-block (ask)
+# Test 31.12: git restore . is soft-block (deny with approval mechanism)
 run_block_dangerous "git restore ."
 DECISION=$(get_permission_decision)
-if [ "$DECISION" = "ask" ]; then
-  pass "Soft block: git restore . → permissionDecision: ask"
+if [ "$DECISION" = "deny" ]; then
+  pass "Soft block: git restore . → permissionDecision: deny (with approval mechanism)"
 else
-  fail "Soft block: git restore . wrong" "Got decision='$DECISION', expected ask"
+  fail "Soft block: git restore . wrong" "Got decision='$DECISION', expected deny"
 fi
 
-# Test 31.13: git clean -f is soft-block (ask)
+# Test 31.13: git clean -f is soft-block (deny with approval mechanism)
 run_block_dangerous "git clean -fd"
 DECISION=$(get_permission_decision)
-if [ "$DECISION" = "ask" ]; then
-  pass "Soft block: git clean -fd → permissionDecision: ask"
+if [ "$DECISION" = "deny" ]; then
+  pass "Soft block: git clean -fd → permissionDecision: deny (with approval mechanism)"
 else
-  fail "Soft block: git clean -fd wrong" "Got decision='$DECISION', expected ask"
+  fail "Soft block: git clean -fd wrong" "Got decision='$DECISION', expected deny"
 fi
 
-# Test 31.14: git stash drop is soft-block (ask)
+# Test 31.14: git stash drop is soft-block (deny with approval mechanism)
 run_block_dangerous "git stash drop"
 DECISION=$(get_permission_decision)
-if [ "$DECISION" = "ask" ]; then
-  pass "Soft block: git stash drop → permissionDecision: ask"
+if [ "$DECISION" = "deny" ]; then
+  pass "Soft block: git stash drop → permissionDecision: deny (with approval mechanism)"
 else
-  fail "Soft block: git stash drop wrong" "Got decision='$DECISION', expected ask"
+  fail "Soft block: git stash drop wrong" "Got decision='$DECISION', expected deny"
 fi
 
-# Test 31.15: git stash clear is soft-block (ask)
+# Test 31.15: git stash clear is soft-block (deny with approval mechanism)
 run_block_dangerous "git stash clear"
 DECISION=$(get_permission_decision)
-if [ "$DECISION" = "ask" ]; then
-  pass "Soft block: git stash clear → permissionDecision: ask"
+if [ "$DECISION" = "deny" ]; then
+  pass "Soft block: git stash clear → permissionDecision: deny (with approval mechanism)"
 else
-  fail "Soft block: git stash clear wrong" "Got decision='$DECISION', expected ask"
+  fail "Soft block: git stash clear wrong" "Got decision='$DECISION', expected deny"
 fi
 
-# Test 31.16: git push --force-with-lease is soft-block (ask)
+# Test 31.16: git push --force-with-lease is soft-block (deny with approval mechanism)
 run_block_dangerous "git push --force-with-lease origin feature"
 DECISION=$(get_permission_decision)
-if [ "$DECISION" = "ask" ]; then
-  pass "Soft block: git push --force-with-lease → permissionDecision: ask"
+if [ "$DECISION" = "deny" ]; then
+  pass "Soft block: git push --force-with-lease → permissionDecision: deny (with approval mechanism)"
 else
-  fail "Soft block: git push --force-with-lease wrong" "Got decision='$DECISION', expected ask"
+  fail "Soft block: git push --force-with-lease wrong" "Got decision='$DECISION', expected deny"
 fi
 
-# Test 31.17: npm install is soft-block (ask) when pnpm project
+# Test 31.17: npm install is soft-block (deny with approval mechanism) when pnpm project
 TEMP_NPM_PROJECT="/tmp/test-npm-block"
 mkdir -p "$TEMP_NPM_PROJECT"
 touch "$TEMP_NPM_PROJECT/pnpm-lock.yaml"
 CLAUDE_PROJECT_DIR="$TEMP_NPM_PROJECT" run_block_dangerous "npm install express"
 DECISION=$(get_permission_decision)
-if [ "$DECISION" = "ask" ]; then
-  pass "Soft block: npm install in pnpm project → permissionDecision: ask"
+if [ "$DECISION" = "deny" ]; then
+  pass "Soft block: npm install in pnpm project → permissionDecision: deny (with approval mechanism)"
 else
-  fail "Soft block: npm install in pnpm project wrong" "Got decision='$DECISION', expected ask"
+  fail "Soft block: npm install in pnpm project wrong" "Got decision='$DECISION', expected deny"
 fi
 
-# Test 31.18: npx is soft-block (ask) when pnpm project
+# Test 31.18: npx is soft-block (deny with approval mechanism) when pnpm project
 CLAUDE_PROJECT_DIR="$TEMP_NPM_PROJECT" run_block_dangerous "npx create-next-app"
 DECISION=$(get_permission_decision)
-if [ "$DECISION" = "ask" ]; then
-  pass "Soft block: npx in pnpm project → permissionDecision: ask"
+if [ "$DECISION" = "deny" ]; then
+  pass "Soft block: npx in pnpm project → permissionDecision: deny (with approval mechanism)"
 else
-  fail "Soft block: npx in pnpm project wrong" "Got decision='$DECISION', expected ask"
+  fail "Soft block: npx in pnpm project wrong" "Got decision='$DECISION', expected deny"
 fi
 rm -rf "$TEMP_NPM_PROJECT"
 
@@ -1942,12 +1942,12 @@ fi
 
 # --- CROSS-CHECK: no soft block uses "deny" ---
 
-# Test 31.23: Verify block-dangerous.sh has no deny() calls in SOFT BLOCK section
+# Test 31.23: Verify soft blocks call ask() (which now outputs deny + creates approval token)
 SOFT_SECTION=$(sed -n '/SOFT BLOCKS/,$ p' "$HOOKS_DIR/block-dangerous.sh")
-if echo "$SOFT_SECTION" | grep -q 'deny "SOFT'; then
-  fail "Soft blocks still using deny() instead of ask()" "All SOFT BLOCK lines must call ask()"
+if echo "$SOFT_SECTION" | grep -q 'ask "SOFT'; then
+  pass "All soft blocks use ask() function (deny + approval mechanism)"
 else
-  pass "All soft blocks use ask(), not deny()"
+  fail "Soft blocks not using ask() function" "All SOFT BLOCK lines must call ask()"
 fi
 
 # Test 31.24: Verify hard blocks still use deny()
@@ -1994,7 +1994,7 @@ UNREGISTERED=""
 for hook_file in $ACTUAL_HOOKS; do
   # Skip utility files that are sourced, not registered
   case "$hook_file" in
-    retry-with-backoff.sh|validate-sprint-boundaries.sh|verify-worktree-merge.sh|worktree-preflight.sh|validate-i18n-keys.sh) continue ;;
+    retry-with-backoff.sh|validate-sprint-boundaries.sh|verify-worktree-merge.sh|worktree-preflight.sh|validate-i18n-keys.sh|approve.sh) continue ;;
   esac
   if ! echo "$REGISTERED_HOOKS" | grep -q "$hook_file"; then
     UNREGISTERED="$UNREGISTERED $hook_file"
@@ -2061,19 +2061,19 @@ header "34. block-dangerous.sh — Force Push via +refspec"
 # Test 34.1: Soft block git push origin +main
 run_block_dangerous "git push origin +main"
 DECISION=$(get_permission_decision)
-if [ "$DECISION" = "ask" ]; then
-  pass "Soft block: git push origin +main (+ refspec) → permissionDecision: ask"
+if [ "$DECISION" = "deny" ]; then
+  pass "Soft block: git push origin +main (+ refspec) → permissionDecision: deny (with approval mechanism)"
 else
-  fail "git push origin +main not soft-blocked" "Got decision=$DECISION, expected ask"
+  fail "git push origin +main not soft-blocked" "Got decision=$DECISION, expected deny"
 fi
 
 # Test 34.2: Soft block git push origin +feature/branch
 run_block_dangerous "git push origin +feature/branch"
 DECISION=$(get_permission_decision)
-if [ "$DECISION" = "ask" ]; then
-  pass "Soft block: git push origin +feature/branch → permissionDecision: ask"
+if [ "$DECISION" = "deny" ]; then
+  pass "Soft block: git push origin +feature/branch → permissionDecision: deny (with approval mechanism)"
 else
-  fail "git push +feature/branch not soft-blocked" "Got decision=$DECISION, expected ask"
+  fail "git push +feature/branch not soft-blocked" "Got decision=$DECISION, expected deny"
 fi
 
 # Test 34.3: Allow normal git push (no +)

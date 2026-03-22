@@ -22,10 +22,31 @@ fi
 # Source shared logger
 source ~/.claude/hooks/lib/hook-logger.sh 2>/dev/null || true
 
+# === APPROVAL TOKEN MECHANISM ===
+# Soft-blocked commands can be approved via: ! ~/.claude/hooks/approve.sh
+# The hook creates a pending file on soft-block; approve.sh moves it to approved.
+# On retry, the hook finds the approval token and allows the command.
+APPROVAL_DIR="$HOME/.claude/hooks/.approvals"
+PENDING_DIR="$HOME/.claude/hooks/.pending"
+CMD_HASH=$(printf '%s' "$COMMAND" | cksum 2>/dev/null | cut -d' ' -f1) || CMD_HASH="fallback"
+
+# Check for existing approval token (valid for 5 minutes)
+if [ -f "$APPROVAL_DIR/$CMD_HASH" ]; then
+  APPROVAL_TIME=$(stat -c %Y "$APPROVAL_DIR/$CMD_HASH" 2>/dev/null || echo 0)
+  NOW=$(date +%s)
+  if [ $((NOW - APPROVAL_TIME)) -lt 300 ]; then
+    rm -f "$APPROVAL_DIR/$CMD_HASH" "$PENDING_DIR/$CMD_HASH" 2>/dev/null
+    log_hook_event "block-dangerous" "approved-by-token" "$COMMAND"
+    exit 0  # Approved — allow the command
+  fi
+  rm -f "$APPROVAL_DIR/$CMD_HASH"  # Expired token
+fi
+
 # Helper to hard-deny with reason (catastrophic actions — no user override)
+# Outputs to stdout + exit 0 so Claude Code parses permissionDecision (not as error)
 deny() {
   log_hook_event "block-dangerous" "denied" "$1"
-  cat >&2 <<EOJSON
+  cat <<EOJSON
 {
   "hookSpecificOutput": {
     "hookEventName": "PreToolUse",
@@ -34,22 +55,28 @@ deny() {
   }
 }
 EOJSON
-  exit 2
+  exit 0
 }
 
 # Helper to soft-block with reason (destructive but legitimate — user can approve)
+# Uses "deny" instead of "ask" because "ask" is silently ignored in bypassPermissions mode.
+# Creates a pending approval file so the user can approve via: ! ~/.claude/hooks/approve.sh
 ask() {
-  log_hook_event "block-dangerous" "asked" "$1"
-  cat >&2 <<EOJSON
+  # Create pending approval file
+  mkdir -p "$PENDING_DIR" 2>/dev/null || true
+  printf 'Reason: %s\nCommand: %s\nTime: %s\n' "$1" "$COMMAND" "$(date -Iseconds 2>/dev/null || date)" > "$PENDING_DIR/$CMD_HASH"
+
+  log_hook_event "block-dangerous" "soft-blocked" "$1"
+  cat <<EOJSON
 {
   "hookSpecificOutput": {
     "hookEventName": "PreToolUse",
-    "permissionDecision": "ask",
-    "permissionDecisionReason": "$1"
+    "permissionDecision": "deny",
+    "permissionDecisionReason": "$1 To approve, run:  ! ~/.claude/hooks/approve.sh  — then retry the command."
   }
 }
 EOJSON
-  exit 2
+  exit 0
 }
 
 # All pattern checks use bash built-in regex — no subprocesses

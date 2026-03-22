@@ -1,5 +1,12 @@
 # Claude Workflow System
 
+[![Tests](https://github.com/vinicius91carvalho/.claude/actions/workflows/test.yml/badge.svg)](https://github.com/vinicius91carvalho/.claude/actions/workflows/test.yml)
+[![Version](https://img.shields.io/github/v/tag/vinicius91carvalho/.claude?label=version&sort=semver)](https://github.com/vinicius91carvalho/.claude/releases)
+[![License: MIT](https://img.shields.io/github/license/vinicius91carvalho/.claude)](LICENSE)
+[![Claude Code](https://img.shields.io/badge/Claude_Code-workflow_system-blueviolet)](https://docs.anthropic.com/en/docs/claude-code)
+[![Languages](https://img.shields.io/badge/languages-16_supported-blue)](#supported-languages)
+[![Hooks](https://img.shields.io/badge/hooks-19_enforced-green)](#safety-enforcement-hooks)
+
 A portable AI engineering system for Claude Code that applies automatically to every project. Built on the Compound Engineering philosophy: each unit of work makes subsequent units easier — not harder.
 
 ## Influences & References

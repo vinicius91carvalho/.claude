@@ -1,0 +1,17 @@
+{
+  "prd": "spec.md",
+  "created": "2026-03-16T12:00:00Z",
+  "sprints": [
+    {
+      "id": 1,
+      "file": "sprints/01-foundation.md",
+      "title": "Foundation",
+      "status": "complete",
+      "depends_on": [],
+      "batch": 1,
+      "model": "sonnet",
+      "branch": "sprint/01-foundation",
+      "merged": true
+    }
+  ]
+}
