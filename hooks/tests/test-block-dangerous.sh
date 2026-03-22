@@ -193,7 +193,7 @@ run_hook "git push -u origin main"
 assert_exit 0 "soft block exits 0"
 assert_stdout_contains '"permissionDecision"' "soft block outputs JSON to stdout"
 assert_json_field "permissionDecision" "deny" "soft block uses permissionDecision: deny"
-assert_stdout_contains "approve.sh" "soft block includes approval instructions"
+assert_stdout_contains "SOFT_BLOCK_APPROVAL_NEEDED" "soft block includes SOFT_BLOCK_APPROVAL_NEEDED prefix"
 assert_stderr_clean "soft block has no error output on stderr"
 
 section "Output Format — Valid JSON"
@@ -304,7 +304,7 @@ section "Soft Blocks — Destructive Git Commands"
 cleanup
 run_hook "git push --force origin feature"
 assert_stdout_contains '"permissionDecision"' "git push --force is soft-blocked"
-assert_stdout_contains "approve.sh" "git push --force shows approval instructions"
+assert_stdout_contains "SOFT_BLOCK_APPROVAL_NEEDED" "git push --force shows SOFT_BLOCK_APPROVAL_NEEDED prefix"
 
 cleanup
 run_hook "git push -f origin feature"
