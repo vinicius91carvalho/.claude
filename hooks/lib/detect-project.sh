@@ -173,13 +173,50 @@ is_entry_point() {
 
 # ─── PROJECT DETECTION ─────────────────────────────────────────────────
 
+# Cache directory and TTL for language detection results.
+_DETECT_CACHE_DIR="${HOME}/.claude/hooks/logs/.cache"
+_DETECT_CACHE_TTL=300  # 5 minutes
+
 # Detects all languages present in a project directory.
 # Sets: PROJECT_LANGS (array), PRIMARY_LANG (string)
+# Caches result to ~/.claude/hooks/logs/.cache/langs_{project_hash} for 5 minutes.
 # Usage: detect_project_langs "/path/to/project"
 detect_project_langs() {
   local dir="$1"
   PROJECT_LANGS=()
   PRIMARY_LANG=""
+
+  # === SESSION-LEVEL LANGUAGE DETECTION CACHE ===
+  # Hash the project directory path for a stable, short cache key.
+  local _phash
+  _phash=$(printf '%s' "$dir" | cksum | cut -d' ' -f1)
+  local _cache_file="${_DETECT_CACHE_DIR}/langs_${_phash}"
+
+  # Ensure cache dir exists (silently)
+  mkdir -p "$_DETECT_CACHE_DIR" 2>/dev/null || true
+
+  # Check if cached result exists and is within TTL.
+  if [ -f "$_cache_file" ]; then
+    local _now _mtime _age
+    _now=$(date +%s)
+    _mtime=$(stat -c %Y "$_cache_file" 2>/dev/null || echo 0)
+    _age=$(( _now - _mtime ))
+    if [ "$_age" -lt "$_DETECT_CACHE_TTL" ]; then
+      # Cache hit — read the stored languages
+      local _cached_line
+      _cached_line=$(cat "$_cache_file" 2>/dev/null || true)
+      if [ -n "$_cached_line" ]; then
+        # Restore array from newline-separated values
+        IFS=$'\n' read -r -a PROJECT_LANGS <<< "$_cached_line" 2>/dev/null || true
+        if [ ${#PROJECT_LANGS[@]} -gt 0 ]; then
+          PRIMARY_LANG="${PROJECT_LANGS[0]}"
+          return
+        fi
+      fi
+    fi
+  fi
+
+  # Cache miss or expired — detect normally below
 
   # TypeScript (check before JS — TS projects also have package.json)
   [ -f "$dir/tsconfig.json" ] && PROJECT_LANGS+=("typescript")
@@ -254,6 +291,14 @@ detect_project_langs() {
   # Primary language = first detected
   if [ ${#PROJECT_LANGS[@]} -gt 0 ]; then
     PRIMARY_LANG="${PROJECT_LANGS[0]}"
+  fi
+
+  # Write detection result to cache (newline-separated language list)
+  if [ ${#PROJECT_LANGS[@]} -gt 0 ]; then
+    printf '%s\n' "${PROJECT_LANGS[@]}" > "$_cache_file" 2>/dev/null || true
+  else
+    # Cache empty result too, to avoid repeated detection on empty projects
+    printf '' > "$_cache_file" 2>/dev/null || true
   fi
 }
 

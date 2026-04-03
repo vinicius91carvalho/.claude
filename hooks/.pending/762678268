@@ -1,0 +1,3 @@
+Reason: SOFT BLOCK: git reset --hard — may discard uncommitted work. Re-approve if intentional.
+Command: git reset --hard HEAD~1
+Time: 2026-04-03T17:54:23+00:00

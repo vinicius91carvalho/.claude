@@ -8,6 +8,10 @@ description: >
   their own published pages, or interact with sites that misidentify automation as
   bot traffic. Also use when the user says "stealth browse", "get page content",
   "open this URL", "read this page", "check this site", or mentions bot detection.
+paths:
+  - "**/*.spec.ts"
+  - "**/e2e/**"
+  - "**/playwright/**"
 ---
 
 # Playwright Stealth: Anti-Detection Web Browsing
@@ -307,6 +311,48 @@ browser_evaluate: () => document.body.innerText -> content
 browser_console_messages: level="warning"  -> debug info
 browser_network_requests: includeStatic=false -> detect blocks
 ```
+
+---
+
+## Artifact Output Paths (MANDATORY)
+
+All Playwright-generated files MUST be saved to `.artifacts/playwright/` — never to the
+project root. The `cleanup-artifacts` Stop hook will move any stray root-level media
+files automatically, but the preferred approach is to write them to the right place from
+the start.
+
+| File type | Destination |
+|-----------|-------------|
+| Screenshots (`.png`, `.jpg`) | `.artifacts/playwright/screenshots/YYYY-MM-DD_HHmm/` |
+| Videos (`.mp4`, `.webm`) | `.artifacts/playwright/videos/YYYY-MM-DD_HHmm/` |
+| HAR files (`.har`) | `.artifacts/playwright/har/YYYY-MM-DD_HHmm/` |
+
+### Creating the directory before saving
+
+Always create the directory first:
+
+```bash
+ARTIFACT_DIR=".artifacts/playwright/screenshots/$(date +%Y-%m-%d_%H%M)"
+mkdir -p "$ARTIFACT_DIR"
+```
+
+Then reference it in your Playwright script:
+
+```javascript
+const artifactDir = `.artifacts/playwright/screenshots/${new Date().toISOString().slice(0,16).replace('T','_').replace(':','')}`;
+await fs.mkdir(artifactDir, { recursive: true });
+await page.screenshot({ path: `${artifactDir}/page.png` });
+```
+
+### Via Playwright MCP tools
+
+When using `browser_take_screenshot`, save to the artifact path explicitly:
+
+```
+browser_take_screenshot -> save as .artifacts/playwright/screenshots/YYYY-MM-DD_HHmm/name.png
+```
+
+Do NOT leave screenshots or videos in the project root directory.
 
 ---
 

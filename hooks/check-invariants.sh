@@ -2,6 +2,8 @@
 set -euo pipefail
 trap 'echo "HOOK CRASH: $0 line $LINENO" >&2; exit 2' ERR
 
+START_NS=$(date +%s%N 2>/dev/null || echo 0)
+
 # PostToolUse(Write|Edit) hook: Verify project invariants after code changes.
 #
 # Reads INVARIANTS.md from the project root. Each invariant has a machine-verifiable
@@ -57,6 +59,7 @@ fi
 # Source shared detection library for is_code_file and is_generated_path
 source ~/.claude/hooks/lib/detect-project.sh
 source ~/.claude/hooks/lib/hook-logger.sh 2>/dev/null || true
+source ~/.claude/hooks/lib/project-cache.sh 2>/dev/null || true
 
 # Skip non-code files (invariant checks only matter for source code)
 if ! is_code_file "$FILE_PATH"; then
@@ -93,6 +96,12 @@ if [ ${#INVARIANT_FILES[@]} -eq 0 ]; then
   exit 0
 fi
 
+# === CACHE SETUP ===
+# Compute project hash for cache key namespacing.
+# This ensures different projects don't share cache entries.
+_PROJ_HASH=$(project_hash "$PROJECT_DIR" 2>/dev/null || printf '%s' "$PROJECT_DIR" | cksum | cut -d' ' -f1)
+_FILE_MTIME=$(stat -c %Y "$FILE_PATH" 2>/dev/null || echo 0)
+
 # === SANDBOX: Command whitelist/blocklist for verify commands ===
 # INVARIANTS.md files may come from cloned repos. Restrict what verify commands can run.
 
@@ -118,9 +127,30 @@ is_safe_verify_cmd() {
 VIOLATIONS=()
 CHECKED=0
 SKIPPED=0
+CACHE_HITS=0
 
 for INV_FILE in "${INVARIANT_FILES[@]}"; do
   CURRENT_INVARIANT=""
+
+  # === CONTENT-HASH CACHING FOR INVARIANTS.md ===
+  # Compute hash of this INVARIANTS.md file. If it hasn't changed AND
+  # the edited file hasn't changed since last check, we can skip re-running
+  # all verify commands for this invariant file.
+  INV_FILE_HASH=$(content_hash "$INV_FILE" 2>/dev/null || echo "nohash")
+  INV_CACHE_KEY="inv_meta_${_PROJ_HASH}_${INV_FILE_HASH//[^a-zA-Z0-9]/_}"
+
+  # Read cached mtime of the edited file from the last check of this invariant file
+  _CACHED_FILE_MTIME=$(cache_get "$INV_CACHE_KEY" 300 2>/dev/null || true)
+
+  # If the INVARIANTS.md hash matches cached state AND the edited file mtime is unchanged,
+  # we can skip all verify commands — nothing has changed that would affect the outcome.
+  if [ -n "$_CACHED_FILE_MTIME" ] && [ "$_CACHED_FILE_MTIME" = "$_FILE_MTIME" ]; then
+    CACHE_HITS=$((CACHE_HITS + 1))
+    continue
+  fi
+
+  # Cache miss or hash changed — parse and run verify commands for this invariant file
+  _INV_RAN_ANY=0
 
   while IFS= read -r line; do
     # Capture invariant name from ## headings
@@ -144,13 +174,38 @@ for INV_FILE in "${INVARIANT_FILES[@]}"; do
       fi
 
       CHECKED=$((CHECKED + 1))
+      _INV_RAN_ANY=1
+
+      # Check per-command result cache.
+      # Key: inv_cmd_{proj_hash}_{inv_file_hash}_{cmd_hash}_{file_mtime}
+      CMD_HASH=$(printf '%s' "$VERIFY_CMD" | cksum | cut -d' ' -f1)
+      CMD_CACHE_KEY="inv_cmd_${_PROJ_HASH}_${INV_FILE_HASH//[^a-zA-Z0-9]/_}_${CMD_HASH}_${_FILE_MTIME}"
+      CACHED_RESULT=$(cache_get "$CMD_CACHE_KEY" 3600 2>/dev/null || true)
+
+      if [ -n "$CACHED_RESULT" ]; then
+        # Cache hit for this verify command
+        CACHE_HITS=$((CACHE_HITS + 1))
+        if [ "$CACHED_RESULT" = "FAIL" ]; then
+          VIOLATIONS+=("${CURRENT_INVARIANT:-Unknown}: ${VERIFY_CMD}")
+        fi
+        continue
+      fi
 
       # Run the verify command in the project directory with a timeout
       if ! (cd "$PROJECT_DIR" && timeout 30 bash -c "$VERIFY_CMD" &>/dev/null); then
         VIOLATIONS+=("${CURRENT_INVARIANT:-Unknown}: ${VERIFY_CMD}")
+        cache_set "$CMD_CACHE_KEY" "FAIL" 2>/dev/null || true
+      else
+        cache_set "$CMD_CACHE_KEY" "PASS" 2>/dev/null || true
       fi
     fi
   done < "$INV_FILE"
+
+  # Update the invariant-file-level cache with current edited file mtime.
+  # Only cache if we actually ran verify commands (no verify cmds = nothing to cache).
+  if [ "$_INV_RAN_ANY" -eq 1 ] && [ ${#VIOLATIONS[@]} -eq 0 ]; then
+    cache_set "$INV_CACHE_KEY" "$_FILE_MTIME" 2>/dev/null || true
+  fi
 done
 
 # No verify commands found — nothing actionable
@@ -158,9 +213,17 @@ if [ "$CHECKED" -eq 0 ]; then
   exit 0
 fi
 
+# Compute elapsed time
+END_NS=$(date +%s%N 2>/dev/null || echo 0)
+if [ "$START_NS" != "0" ] && [ "$END_NS" != "0" ]; then
+  ELAPSED_MS=$(( (END_NS - START_NS) / 1000000 ))
+else
+  ELAPSED_MS=0
+fi
+
 # Report violations
 if [ ${#VIOLATIONS[@]} -gt 0 ]; then
-  log_hook_event "check-invariants" "violated" "${#VIOLATIONS[@]} of $CHECKED failed: $FILE_PATH"
+  log_hook_event "check-invariants" "violated" "${#VIOLATIONS[@]} of $CHECKED failed (${ELAPSED_MS}ms, ${CACHE_HITS} cached): $FILE_PATH"
   {
     echo "INVARIANT VIOLATION: ${#VIOLATIONS[@]} of $CHECKED invariants failed after editing $FILE_PATH"
     echo ""
@@ -173,4 +236,5 @@ if [ ${#VIOLATIONS[@]} -gt 0 ]; then
   exit 2
 fi
 
+log_hook_event "check-invariants" "passed" "checked=$CHECKED cached=${CACHE_HITS} elapsed=${ELAPSED_MS}ms: $FILE_PATH"
 exit 0

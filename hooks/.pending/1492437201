@@ -1,0 +1,3 @@
+Reason: SOFT BLOCK: git stash drop/clear — permanently discards stashed changes. Re-approve if intentional.
+Command: git stash drop
+Time: 2026-04-03T17:54:23+00:00

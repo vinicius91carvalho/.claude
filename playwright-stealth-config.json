@@ -51,5 +51,7 @@
       "sec-ch-ua-platform": "\"Linux\""
     }
   },
-  "initScript": "~/.claude/playwright-stealth-init.js"
+  "initScript": "~/.claude/playwright-stealth-init.js",
+  "artifactsDir": ".artifacts/playwright",
+  "_artifactsDirNote": "Relative to project root. Subdirs: screenshots/YYYY-MM-DD_HHmm/, videos/YYYY-MM-DD_HHmm/, har/YYYY-MM-DD_HHmm/"
 }

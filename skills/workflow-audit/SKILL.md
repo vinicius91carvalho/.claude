@@ -4,6 +4,7 @@ description: >
   Periodic self-audit of the workflow system. Reviews rule effectiveness,
   model performance, error patterns, and stale configuration. Use monthly
   or when the user says "audit workflow", "review the system", "check workflow health".
+context: fork
 ---
 
 # Workflow Audit — Periodic System Self-Review

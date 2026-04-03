@@ -7,7 +7,31 @@
   },
   "permissions": {
     "deny": [],
-    "defaultMode": "bypassPermissions"
+    "allow": [
+      "Read",
+      "Write",
+      "Edit",
+      "MultiEdit",
+      "Glob",
+      "Grep",
+      "Bash",
+      "Agent",
+      "Skill",
+      "LSP",
+      "NotebookEdit",
+      "WebFetch",
+      "WebSearch",
+      "TaskCreate",
+      "TaskUpdate",
+      "TaskGet",
+      "TaskList",
+      "TaskStop",
+      "SendMessage",
+      "AskUserQuestion",
+      "EnterPlanMode",
+      "ExitPlanMode",
+      "mcp__*"
+    ]
   },
   "hooks": {
     "PostToolUse": [
@@ -31,6 +55,14 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/end-of-turn-typecheck.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/cleanup-artifacts.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/cleanup-worktrees.sh"
           },
           {
             "type": "command",
@@ -81,6 +113,36 @@
           }
         ]
       }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/compact-save.sh"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/compact-restore.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/session-start.sh"
+          }
+        ]
+      }
     ]
   },
   "enabledPlugins": {
@@ -97,5 +159,8 @@
   },
   "extraKnownMarketplaces": {},
   "effortLevel": "high",
-  "skipDangerousModePermissionPrompt": true
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline-command.sh"
+  }
 }

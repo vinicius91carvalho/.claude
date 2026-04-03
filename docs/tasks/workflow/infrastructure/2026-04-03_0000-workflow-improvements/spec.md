@@ -65,22 +65,22 @@ THEN those files are organized under `.artifacts/{category}/YYYY-MM-DD_HHmm/`
 
 ## 6. Acceptance Criteria
 
-- [ ] `check-invariants.sh` uses content-hash caching to skip re-parsing unchanged INVARIANTS.md files
-- [ ] `check-invariants.sh` caches verify command results and invalidates on edited file change
-- [ ] `end-of-turn-typecheck.sh` skips if no code files changed since last successful typecheck
-- [ ] `detect-project.sh` exports a session-level cache for project language detection
-- [ ] Total Stop hook execution time <5s on a warm cache for a typical TypeScript project
-- [ ] New `cleanup-artifacts.sh` Stop hook moves stray artifacts from project root to `.artifacts/`
-- [ ] `.artifacts/` structure: `{category}/YYYY-MM-DD_HHmm/{files}` where category is playwright, execution, research, etc.
-- [ ] `playwright-stealth/SKILL.md` updated to always output to `.artifacts/playwright/`
-- [ ] New `skills/research/SKILL.md` implementing Stochastic Consensus & Debate pattern
-- [ ] Research skill uses minimum 5 sonnet researcher agents with diverse angles
-- [ ] Research skill uses opus synthesizer agent for final consensus
-- [ ] Research output includes: consensus, disagreements, confidence levels, actionable recommendations
-- [ ] New `cleanup-worktrees.sh` Stop hook prunes stale worktrees and merged sprint branches
-- [ ] `cleanup-worktrees.sh` NEVER deletes unmerged branches (safety invariant)
-- [ ] CLAUDE.md updated with artifact management rules and research skill in skill selection tree
-- [ ] `settings.json` updated with new Stop hooks
+- [x] `check-invariants.sh` uses content-hash caching to skip re-parsing unchanged INVARIANTS.md files
+- [x] `check-invariants.sh` caches verify command results and invalidates on edited file change
+- [x] `end-of-turn-typecheck.sh` skips if no code files changed since last successful typecheck
+- [x] `detect-project.sh` exports a session-level cache for project language detection
+- [x] Total Stop hook execution time <5s on a warm cache for a typical TypeScript project
+- [x] New `cleanup-artifacts.sh` Stop hook moves stray artifacts from project root to `.artifacts/`
+- [x] `.artifacts/` structure: `{category}/YYYY-MM-DD_HHmm/{files}` where category is playwright, execution, research, etc.
+- [x] `playwright-stealth/SKILL.md` updated to always output to `.artifacts/playwright/`
+- [x] New `skills/research/SKILL.md` implementing Stochastic Consensus & Debate pattern
+- [x] Research skill uses minimum 5 sonnet researcher agents with diverse angles
+- [x] Research skill uses opus synthesizer agent for final consensus
+- [x] Research output includes: consensus, disagreements, confidence levels, actionable recommendations
+- [x] New `cleanup-worktrees.sh` Stop hook prunes stale worktrees and merged sprint branches
+- [x] `cleanup-worktrees.sh` NEVER deletes unmerged branches (safety invariant)
+- [x] CLAUDE.md updated with artifact management rules and research skill in skill selection tree
+- [x] `settings.json` updated with new Stop hooks
 
 ## 7. Non-Goals
 

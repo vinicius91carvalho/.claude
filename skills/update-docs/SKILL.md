@@ -1,6 +1,10 @@
 ---
 name: update-docs
 description: Analyze the codebase and update project documentation (README.md, docs/) to reflect the current state of the code. Use this skill when the user says "update docs", "update readme", "sync docs", "docs are stale", "refresh documentation", or when workflow files changed and docs need updating. Also auto-invoke when check-docs-updated.sh blocks a push, or when the user wants to document a project for the first time. Works on any project — not just the workflow repo.
+context: fork
+paths:
+  - "**/README.md"
+  - "**/docs/**"
 ---
 
 # Update Docs

@@ -6,45 +6,45 @@
       "id": 1,
       "file": "sprints/01-hook-performance.md",
       "title": "Hook Performance Optimization",
-      "status": "not_started",
+      "status": "complete",
       "depends_on": [],
       "batch": 1,
       "model": "sonnet",
       "branch": null,
-      "merged": false
+      "merged": true
     },
     {
       "id": 2,
       "file": "sprints/02-artifact-management.md",
       "title": "Artifact Management & Playwright Paths",
-      "status": "not_started",
+      "status": "complete",
       "depends_on": [1],
       "batch": 2,
       "model": "sonnet",
       "branch": null,
-      "merged": false
+      "merged": true
     },
     {
       "id": 3,
       "file": "sprints/03-research-skill.md",
       "title": "Stochastic Consensus & Debate Skill",
-      "status": "not_started",
+      "status": "complete",
       "depends_on": [1],
       "batch": 2,
       "model": "sonnet",
       "branch": null,
-      "merged": false
+      "merged": true
     },
     {
       "id": 4,
       "file": "sprints/04-worktree-integration.md",
       "title": "Worktree Cleanup & CLAUDE.md Integration",
-      "status": "not_started",
+      "status": "complete",
       "depends_on": [2, 3],
       "batch": 3,
       "model": "sonnet",
       "branch": null,
-      "merged": false
+      "merged": true
     }
   ]
 }

@@ -1,0 +1,146 @@
+{
+  "skill": "research",
+  "version": "1.0.0",
+  "description": "Evaluation scenarios for the Stochastic Consensus & Debate research skill",
+  "scenarios": [
+    {
+      "id": "perf-optimization",
+      "name": "Next.js Performance Optimization",
+      "invocation": "/research \"How should I optimize this Next.js application for performance?\"",
+      "question": "How should I optimize this Next.js application for performance?",
+      "config": {
+        "agents": 5,
+        "depth": "standard",
+        "scope": "codebase"
+      },
+      "expected_angles": [
+        "Technical/Implementation",
+        "Risk/Security",
+        "Performance/Scalability",
+        "User/Product Impact",
+        "Contrarian/Devil's Advocate"
+      ],
+      "pass_criteria": {
+        "must_have": [
+          "At least one concrete disagreement surfaced (not all recommendations identical)",
+          "Performance angle produces specific bottleneck findings (not generic tips)",
+          "Contrarian angle challenges at least one mainstream optimization assumption",
+          "Recommendations use 'do X when Y' format, not generic 'consider X'",
+          "Consensus section identifies findings that 3+ researchers independently reached"
+        ],
+        "must_not_have": [
+          "All 5 researchers producing identical recommendations",
+          "Generic advice without codebase-specific evidence",
+          "Confidence defaulting to HIGH without supporting evidence",
+          "Recommendations that are mutually exclusive without noting the conflict"
+        ]
+      },
+      "quality_signals": {
+        "HIGH": "Researchers disagree on at least one recommendation (e.g., SSR vs SSG vs ISR), synthesizer resolves with 'depends on' logic that specifies the conditions",
+        "MEDIUM": "Multiple perspectives present but disagreements are not fully resolved",
+        "LOW": "All researchers converge to the same generic list (bundle size, images, caching) without genuine debate"
+      }
+    },
+    {
+      "id": "api-technology-choice",
+      "name": "tRPC vs GraphQL vs REST Comparison",
+      "invocation": "/research \"Compare tRPC vs GraphQL vs REST for this project\"",
+      "question": "Compare tRPC vs GraphQL vs REST for this project",
+      "config": {
+        "agents": 5,
+        "depth": "standard",
+        "scope": "codebase"
+      },
+      "expected_angles": [
+        "Technical/Implementation",
+        "Risk/Security",
+        "Performance/Scalability",
+        "User/Product Impact",
+        "Contrarian/Devil's Advocate"
+      ],
+      "pass_criteria": {
+        "must_have": [
+          "Genuine disagreements surfaced between at least 2 researchers",
+          "Technology-choice angle preset applied (maturity, community, performance, DX, contrarian)",
+          "Each technology appears in at least one researcher's findings with specific evidence",
+          "Disagreements classified as factual vs values-based",
+          "Synthesizer produces conditional recommendation (e.g., 'use tRPC when full-stack TS; GraphQL when multi-client')",
+          "Risk/Security angle addresses API surface area and schema exposure risks"
+        ],
+        "must_not_have": [
+          "Synthesizer declaring a single winner without conditional logic",
+          "All researchers agreeing unanimously (this topic has genuine tradeoffs)",
+          "Recommendations not tied to codebase characteristics observed during research",
+          "Missing mention of team size or type-safety considerations"
+        ]
+      },
+      "quality_signals": {
+        "HIGH": "Synthesizer identifies a factual disagreement (e.g., performance benchmarks) AND a values-based disagreement (e.g., type-safety importance), resolves each differently",
+        "MEDIUM": "Tradeoffs listed but not resolved into conditional recommendations",
+        "LOW": "Generic comparison table that could apply to any project without codebase-specific insight"
+      }
+    },
+    {
+      "id": "microservices-testing",
+      "name": "Microservices Testing Strategy",
+      "invocation": "/research \"What's the best testing strategy for a microservices architecture?\"",
+      "question": "What's the best testing strategy for a microservices architecture?",
+      "config": {
+        "agents": 5,
+        "depth": "standard",
+        "scope": "codebase"
+      },
+      "expected_angles": [
+        "Technical/Implementation",
+        "Risk/Security",
+        "Performance/Scalability",
+        "User/Product Impact",
+        "Contrarian/Devil's Advocate"
+      ],
+      "pass_criteria": {
+        "must_have": [
+          "Practical and theoretical angles both represented (not purely academic)",
+          "Contrarian angle challenges a standard assumption (e.g., 'integration tests are overrated', or 'contract tests add complexity that small teams can't sustain')",
+          "At least one recommendation specific to the number/size of services in this codebase",
+          "Risk/Security angle covers test coverage gaps that create security blind spots",
+          "Consensus section includes at least one finding (e.g., unit tests are always needed)",
+          "Disagreement between angles on testing pyramid vs honeycomb vs trophy shape"
+        ],
+        "must_not_have": [
+          "Recommending the same testing strategy regardless of team size or service count",
+          "Ignoring contract testing / consumer-driven contracts entirely",
+          "Security angle treating testing strategy as purely functional (missing security test coverage)",
+          "All agents agreeing on a single canonical model without surfacing real-world objections"
+        ]
+      },
+      "quality_signals": {
+        "HIGH": "Researchers disagree on integration test strategy (e.g., full-stack vs contract vs mocking), synthesizer classifies as values-based (team velocity vs confidence) and gives conditional resolution based on team size",
+        "MEDIUM": "Multiple test levels covered but without genuine conflict or conditional recommendations",
+        "LOW": "Generic 'unit + integration + E2E' recommendation that applies to any architecture"
+      }
+    }
+  ],
+  "evaluation_protocol": {
+    "how_to_run": "Invoke the skill with each scenario's invocation string, then check the output against pass_criteria",
+    "automated_checks": [
+      "Output contains '## Research:' header",
+      "Output contains '### Consensus' section",
+      "Output contains '### Disagreements' section",
+      "Output contains '### Individual Perspectives' section",
+      "Output contains '### Synthesis & Recommendations' section",
+      "Output contains '### Confidence Assessment' section",
+      "Disagreements section is non-empty (not 'None found')",
+      "Recommendations use actionable language (do/use/prefer/avoid), not hedging (consider/maybe/might)"
+    ],
+    "manual_checks": [
+      "At least one recommendation is conditional ('when X, do Y' format)",
+      "Confidence assessment is calibrated (not always HIGH)",
+      "Individual perspectives section shows genuinely distinct insights per angle",
+      "No credentials or sensitive data visible in output"
+    ],
+    "scoring": {
+      "pass": "All automated checks pass + majority of manual checks pass",
+      "fail": "Any automated check fails OR less than half of manual checks pass"
+    }
+  }
+}

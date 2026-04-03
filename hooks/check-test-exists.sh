@@ -73,6 +73,11 @@ case "$FILE_PATH" in
   *.d.ts) exit 0 ;;
 esac
 
+# Skip pure type/interface files in domain/types directories (no runtime behavior)
+case "$FILE_PATH" in
+  */domain/types/*.ts|*/domain/types/index.ts) exit 0 ;;
+esac
+
 # Skip CSS/style-only files
 case "$FILE_PATH" in
   *.css|*.scss|*.less|*.styles.ts|*.styled.ts) exit 0 ;;

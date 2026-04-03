@@ -8,6 +8,7 @@ description: >
   functionality", or when user provides a feature description to execute. Also
   triggers when user wants to work through pending task files. After local testing
   completes, user manually verifies, then uses /ship-test-ensure to deploy.
+context: fork
 ---
 
 # Plan, Build & Test — Local Development Workflow
@@ -708,6 +709,16 @@ For issues that required multiple attempts, revealed unknown patterns, or were c
 ### Next Step
 Run `/ship-test-ensure` when ready to deploy.
 ```
+
+### Step 6.5: Worktree & Artifact Cleanup
+
+After learning capture, ensure a clean state:
+
+1. Run `git worktree prune` to remove stale worktree references
+2. Remove any merged sprint/* branches: `git branch --merged | grep 'sprint/' | xargs -r git branch -d`
+3. Verify `git worktree list` shows only the main worktree
+4. Move any stray artifacts from project root to `.artifacts/` (the cleanup-artifacts.sh Stop hook handles this, but verify)
+5. Log cleanup results to session learnings
 
 ---
 

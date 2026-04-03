@@ -5,6 +5,7 @@ description: >
   task, feature request, bug to fix (multi-file), refactoring need, or says
   "plan", "let's build", "I need", "implement", "create a PRD". Do NOT invoke
   for simple questions, conversations, or single-line fixes.
+context: fork
 ---
 
 # Plan: Task Classification and PRD Generation

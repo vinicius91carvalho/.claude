@@ -5,6 +5,7 @@ description: >
   or sprint is completed, when the user says "done", "finished", "wrap up",
   or when all acceptance criteria are checked off. Do NOT invoke when user
   says "ship it" — that triggers /ship-test-ensure instead.
+context: fork
 ---
 
 # Compound: Learning Capture & Knowledge Promotion

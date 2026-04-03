@@ -8,6 +8,7 @@ description: >
   step. Use when the user says "ship it", "deploy everything", "ship and verify",
   "push to prod", "full deploy pipeline", or wants to go from committed code to
   verified production with perfect scores.
+context: fork
 ---
 
 # Ship, Test & Ensure — Full CI/CD Pipeline from Commit to Perfect Production Scores

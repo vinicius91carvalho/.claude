@@ -40,6 +40,7 @@ fi
 
 # Source shared detection library
 source ~/.claude/hooks/lib/detect-project.sh
+source ~/.claude/hooks/lib/project-cache.sh 2>/dev/null || true
 
 # Detect project languages
 detect_project_langs "$PROJECT_DIR"
@@ -59,6 +60,12 @@ WROTE_CODE=$(echo "$INPUT" | jq -r '
   )) | length
 ' 2>/dev/null || echo "0")
 
+# === MARKER-BASED INCREMENTAL SKIP ===
+# Compute a stable project hash for the marker file name.
+PROJECT_HASH=$(project_hash "$PROJECT_DIR" 2>/dev/null || printf '%s' "$PROJECT_DIR" | cksum | cut -d' ' -f1)
+TYPECHECK_MARKER="typecheck_success_${PROJECT_HASH}"
+MARKER_FILE=$(marker_path "$TYPECHECK_MARKER" 2>/dev/null || echo "${LOG_DIR}/.typecheck_success_${PROJECT_HASH}")
+
 if [ "$WROTE_CODE" = "0" ]; then
   # Check for recent file modifications as fallback
   RECENT_CHANGES=""
@@ -70,6 +77,23 @@ if [ "$WROTE_CODE" = "0" ]; then
     fi
   done
   if [ -z "$RECENT_CHANGES" ]; then
+    exit 0
+  fi
+fi
+
+# If the marker file exists and no code files are newer than it,
+# we can skip the type checker entirely — nothing changed since last pass.
+if [ -f "$MARKER_FILE" ]; then
+  ANY_NEWER=""
+  for lang in "${PROJECT_LANGS[@]}"; do
+    EXT_PATTERN=$(code_extensions_for_lang "$lang")
+    if [ -n "$EXT_PATTERN" ]; then
+      ANY_NEWER=$(eval "find '$PROJECT_DIR' \( $EXT_PATTERN \) -newer '$MARKER_FILE'" 2>/dev/null | head -1) || true
+      [ -n "$ANY_NEWER" ] && break
+    fi
+  done
+  if [ -z "$ANY_NEWER" ]; then
+    # No code files changed since last successful typecheck — skip
     exit 0
   fi
 fi
@@ -209,8 +233,10 @@ ELAPSED_MS=$(( (END_NS - START_NS) / 1000000 ))
 # Log result
 echo "[$(date -Iseconds)] tool=$TOOL_NAME elapsed=${ELAPSED_MS}ms exit=$TYPECHECK_EXIT" >> "$LOG_DIR/typecheck.log"
 
-# If passed, exit silently
+# If passed, update the success marker and exit silently
 if [ "$TYPECHECK_EXIT" -eq 0 ]; then
+  # Touch marker so future runs can skip if no files changed since now
+  marker_touch "$TYPECHECK_MARKER" 2>/dev/null || touch "$MARKER_FILE" 2>/dev/null || true
   exit 0
 fi
 

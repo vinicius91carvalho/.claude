@@ -8,6 +8,7 @@ description: >
   ones (use /plan for that). Runs a structured discovery interview, applies battle-tested architecture
   defaults, generates a full PRD with adversarial analysis, and outputs sprint-ready specs compatible
   with /plan-build-test.
+context: fork
 ---
 
 # Create Project: From Idea to Production-Grade PRD
