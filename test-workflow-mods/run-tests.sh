@@ -31,6 +31,15 @@ EVOLUTION_DIR="$HOME/.claude/evolution"
 FIXTURES_DIR="$(cd "$(dirname "$0")/testdata" && pwd)"
 SETTINGS="$HOME/.claude/settings.json"
 CLAUDE_MD="$HOME/.claude/CLAUDE.md"
+# Build expanded CLAUDE.md content (resolve @rules/ includes)
+CLAUDE_MD_EXPANDED=$(mktemp)
+cat "$CLAUDE_MD" > "$CLAUDE_MD_EXPANDED"
+while IFS= read -r rules_file; do
+  if [ -f "$HOME/.claude/$rules_file" ]; then
+    cat "$HOME/.claude/$rules_file" >> "$CLAUDE_MD_EXPANDED"
+  fi
+done < <(grep -oP '@rules/\S+' "$CLAUDE_MD" | sed 's/^@//')
+trap 'rm -f "$CLAUDE_MD_EXPANDED"' EXIT
 PASS=0
 FAIL=0
 TOTAL=0
@@ -605,7 +614,7 @@ declare -A CLAUDE_MD_CHECKS=(
 
 for pattern in "${!CLAUDE_MD_CHECKS[@]}"; do
   label="${CLAUDE_MD_CHECKS[$pattern]}"
-  if grep -q "$pattern" "$CLAUDE_MD"; then
+  if grep -q "$pattern" "$CLAUDE_MD_EXPANDED"; then
     pass "CLAUDE.md documents: $label"
   else
     fail "CLAUDE.md missing: $label"
