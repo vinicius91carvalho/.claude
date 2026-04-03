@@ -1,3 +1,0 @@
-Reason: SOFT BLOCK: git push with + refspec (force push) detected. Re-approve if intentional.
-Command: git push origin +feature/branch
-Time: 2026-04-03T17:54:25+00:00

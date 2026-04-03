@@ -1,3 +1,0 @@
-Reason: SOFT BLOCK: git force push detected — may overwrite remote history. Re-approve if intentional.
-Command: git push --force origin feature
-Time: 2026-04-03T17:54:22+00:00

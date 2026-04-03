@@ -1,3 +1,0 @@
-Reason: SOFT BLOCK: npx detected — this project uses pnpm (pnpm-lock.yaml found). Use pnpm dlx instead.
-Command: npx create-next-app
-Time: 2026-04-03T17:54:24+00:00
