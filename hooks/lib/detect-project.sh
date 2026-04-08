@@ -106,6 +106,8 @@ is_config_file() {
     # Universal config patterns
     *.config.*|*.setup.*|*.conf|*.cfg) return 0 ;;
     */migrations/*|*/seeds/*|*/fixtures/*|*/scripts/*|*/bin/*) return 0 ;;
+    */middleware.ts|*/middleware.js) return 0 ;;
+    */app/*/layout.tsx|*/app/*/layout.ts|*/app/*/page.tsx|*/app/*/page.ts) return 0 ;;
     */docs/*|*/documentation/*) return 0 ;;
     *Dockerfile*|*docker-compose*|*.dockerignore) return 0 ;;
     *Makefile|*.mk) return 0 ;;

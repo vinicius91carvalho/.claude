@@ -6,7 +6,6 @@
     "WATCHPACK_POLLING": "true"
   },
   "permissions": {
-    "deny": [],
     "allow": [
       "Read",
       "Write",
@@ -31,7 +30,8 @@
       "EnterPlanMode",
       "ExitPlanMode",
       "mcp__*"
-    ]
+    ],
+    "deny": []
   },
   "hooks": {
     "PostToolUse": [
@@ -145,6 +145,10 @@
       }
     ]
   },
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline-command.sh"
+  },
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,
     "context7@claude-plugins-official": true,
@@ -158,9 +162,6 @@
     "skill-creator@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {},
-  "effortLevel": "high",
-  "statusLine": {
-    "type": "command",
-    "command": "~/.claude/statusline-command.sh"
-  }
+  "skipDangerousModePermissionPrompt": true,
+  "effortLevel": "high"
 }
