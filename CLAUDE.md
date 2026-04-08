@@ -176,6 +176,59 @@ When a hook returns `SOFT_BLOCK_APPROVAL_NEEDED:` prefix: present reason to user
 
 ---
 
+## MODEL ASSIGNMENT & DELEGATION
+
+Use the right model and delegate aggressively to subagents. The main agent is an **orchestrator**, not a worker — its context is precious. Wrong-model selection wastes tokens and degrades quality. This is not optional.
+
+### Task → Model Matrix
+
+| Task Type                                      | Model    |
+| ----------------------------------------------- | -------- |
+| File scanning, discovery, dependency analysis   | `haiku`  |
+| Simple fixes (lint, format, typos, CSS tweaks)  | `haiku`  |
+| Session learnings compilation                   | `haiku`  |
+| Standard implementation                         | `sonnet` |
+| Bug fix implementation                          | `sonnet` |
+| Test writing                                    | `sonnet` |
+| Verification & regression scan                  | `sonnet` |
+| Sprint orchestration (deterministic checklist)  | `sonnet` |
+| Complex/multi-file refactoring                  | `opus`   |
+| Architectural decisions                         | `opus`   |
+| Merge conflict resolution (>3 files)            | `opus`   |
+
+Model defaults live in each agent's frontmatter. Override via the `model` parameter on the Agent tool when the task type warrants it.
+
+### Subagent Delegation (mandatory, not optional)
+
+**ALWAYS delegate to a subagent when:**
+
+- **File scanning / dependency analysis** (finite, structured — count files, extract imports, find symbols, glob-and-read patterns) → `Explore` agent with `model: "haiku"`
+- **Open-ended codebase investigation** (unknown scope, requires reasoning across multiple rounds) → `Explore` agent with `model: "sonnet"`
+- **Reading >5 files** to answer a question → pick haiku or sonnet per the two rules above
+- **Executing a sprint** with declared file boundaries → `sprint-executor` (sonnet, `isolation: worktree`)
+- **Reviewing code** after sprint implementation → `code-reviewer` (sonnet, read-only)
+- **Managing a PRD with multiple sprints** → `orchestrator` (sonnet)
+- **Deep multi-perspective research** → `/research` skill (N sonnet researchers + 1 opus synthesizer)
+- **Merge conflicts across >3 files** → opus agent
+
+**Enforcement:** If you catch yourself reading more than 5 files in sequence without delegating, STOP and spawn a subagent. The cue to watch for: "I just need to check a few more files to understand X" — that's the trigger to delegate. The main agent's context is finite; haiku/sonnet subagents have their own context and return only a summary.
+
+**What stays in the main agent (do NOT delegate):**
+
+- Playwright MCP browser interaction (`browser_navigate`, `browser_snapshot`, `browser_console_messages`, etc.) — browser state must stay with the orchestrator
+- Simple file edits (checkboxes, session-learnings, single-line fixes)
+- Bug investigation reading ≤5 targeted files
+- Direct file reads when the target path is already known
+
+### Adaptation
+
+After 10+ data points per task type, `/compound` checks `~/.claude/evolution/model-performance.json`:
+- First-try success rate < 70% → propose upgrade to next tier
+- First-try success rate > 90% → propose downgrade to save cost
+- Changes require user approval; logged in `~/.claude/evolution/workflow-changelog.md`
+
+---
+
 ## DEVELOPMENT RULES
 
 ### TDD for Features (mandatory order)
@@ -239,6 +292,52 @@ When a fix makes things worse, **stop layering fixes on top of broken fixes**: r
 - Tests pass but haven't visually verified → NOT DONE
 - Checked off tasks but didn't re-read plan → NOT DONE
 - Only tested as admin/superuser → NOT DONE
+
+### End-of-Task Browser Verification (mandatory for UI/API/server work)
+
+Extension of the Anti-Premature Completion Protocol — not a replacement. Before claiming ANY task complete that touched UI, API routes, or server-side code, you MUST run this verification loop with Playwright.
+
+**When this applies:**
+- Frontend components, pages, or styles modified
+- API routes created/modified (REST, GraphQL, tRPC, Next.js API handlers, server actions)
+- Server-side logic (Next.js middleware, SSR, streaming, RSC)
+- Database queries that flow to the UI
+- Config changes that affect runtime behavior (next.config, middleware config, env vars)
+
+**When this does NOT apply:**
+- Pure documentation changes
+- Test-only changes (but still run the tests)
+- Standalone scripts with no UI/API surface
+- Build tool/lint config that does not affect runtime output
+
+**The Protocol:**
+
+1. **Start the dev server** — `pnpm dev` (or the project-specific command from the project's CLAUDE.md `## Execution Config`). Wait until the server reports ready. Keep the server log visible — you will check it.
+2. **Open Playwright** — Use `mcp__plugin_playwright_playwright__browser_navigate` to the first affected route. Playwright MCP interaction stays in the main agent, never delegated to a subagent.
+3. **Take a screenshot** — `browser_take_screenshot` saved under `.artifacts/playwright/screenshots/YYYY-MM-DD_HHmm/<route>_<step>.png`.
+4. **Check the browser console** — Call `browser_console_messages`. Classify every message:
+   - **ERROR** → MUST fix. App is broken or about to break.
+   - **WARN** → MUST fix unless genuinely third-party and unavoidable (document the exception in session-learnings).
+   - **LOG / DEBUG / INFO** → Remove stray `console.log` / `console.debug` statements introduced by this task. Production code does not ship debug output.
+5. **Check the server console** — Read the dev server output. Look for:
+   - Next.js compilation errors or warnings
+   - Runtime exceptions, unhandled rejections, module-not-found
+   - Hydration mismatches, React key warnings, invalid hook calls, effect cleanup warnings
+   - API route 500s, Prisma/ORM errors, server action failures
+   - Middleware errors, edge runtime warnings
+6. **Navigate every affected route** — Repeat steps 3-5 for each. Include at least one end-to-end user flow (click, submit, navigate) that exercises the feature.
+7. **Fix every error found** — After any fix, loop back to step 1 (some changes require a dev server restart). Do NOT mark the task complete until **both consoles are clean**.
+8. **Save final artifacts** — Final screenshots go to `.artifacts/playwright/screenshots/YYYY-MM-DD_HHmm/` with descriptive filenames (`<route>_final.png`). These serve as evidence for the Stop hook's completion check.
+
+**Failure modes (STOP and report, do not paper over):**
+- Dev server won't start → BLOCKED. Investigate the server log, do not claim completion.
+- Playwright can't navigate (route 404/500) → the routing is broken. Fix before continuing.
+- Same errors keep reappearing after fixes → ROLLBACK per the Rollback & Recovery Protocol (stop layering fixes on broken fixes).
+- Console has errors from code you didn't touch → investigate. If pre-existing, log in session-learnings and escalate to the user. Do not suppress errors just to make your task look clean.
+
+**Completion evidence required in the final report:**
+- At least one screenshot in `.artifacts/playwright/screenshots/` from the current session
+- A statement naming each route verified and confirming both consoles were clean
 
 ### Post-Implementation Checklist
 

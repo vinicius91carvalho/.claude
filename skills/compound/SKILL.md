@@ -123,9 +123,19 @@ context: fork
    d. **Workflow changelog** — if any system file was modified (CLAUDE.md, skill, agent, hook):
       - Append entry to `~/.claude/evolution/workflow-changelog.md` with date, what, why, source
 
-8. **Session Postmortem** (run at end of session or when user says "wrap up"):
+8. **Session Postmortem** (MANDATORY — ALWAYS run, never skip):
 
-   Write a structured postmortem to `~/.claude/evolution/session-postmortems/YYYY-MM-DD_project-name.md`:
+   This file is the foundation of trend analysis in `/workflow-audit`. Skipping it makes future audits blind. Never batch, never skip — one file per `/compound` invocation.
+
+   **How to write it:**
+   1. Get a timestamp: `TS=$(date +%Y-%m-%d_%H%M)`
+   2. Determine project name from the current working directory basename
+   3. Use the **Write tool** (not echo/cat) to create `~/.claude/evolution/session-postmortems/${TS}_${PROJECT_NAME}.md`
+   4. File content must follow the template below verbatim, filled in with real data from this session
+
+   The filename includes `HHmm` so multiple /compound invocations on the same day produce distinct files. Do NOT overwrite existing files.
+
+   **Template to write:**
 
    ```markdown
    # Session Postmortem — [date] — [project]

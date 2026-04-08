@@ -18,10 +18,6 @@ What tests cannot catch: security heuristics, architectural implications, comple
 
 Full evaluation checklists (Stack Evaluation, Diagnostic Loop, Spec Self-Evaluator) live in `~/.claude/docs/evaluation-reference.md`. Load when needed for PRD review or post-sprint verification.
 
-## Model Assignment
-
-Default: haiku for scanning/simple fixes, sonnet for implementation/tests/orchestration, opus for complex refactoring/architecture/merge conflicts. Adaptive — evolves via `~/.claude/evolution/model-performance.json`. Full matrix and adaptation rules: `~/.claude/docs/model-assignment.md`.
-
 ## Code Intelligence
 
 Prefer LSP over Grep/Glob/Read for code navigation:

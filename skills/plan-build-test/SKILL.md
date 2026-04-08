@@ -652,7 +652,7 @@ For issues that required multiple attempts, revealed unknown patterns, or were c
 2. **Update model performance:** Record model outcomes in `~/.claude/evolution/model-performance.json`
 3. **Check adaptation thresholds:** If model performance data suggests upgrade/downgrade, report to user
 4. **Log system changes:** If any skill/agent/hook was modified, log in `~/.claude/evolution/workflow-changelog.md`
-5. **Write session postmortem:** Create `~/.claude/evolution/session-postmortems/YYYY-MM-DD_project-name.md`
+5. **Write session postmortem (MANDATORY — never skip):** Use the Write tool to create `~/.claude/evolution/session-postmortems/${TS}_${PROJECT_NAME}.md` where `TS=$(date +%Y-%m-%d_%H%M)`. This is the foundation for trend analysis in `/workflow-audit` — never skip. See `/compound` skill Step 8 for the full template. Do NOT overwrite existing postmortem files.
 
 ### Step 6.3: Session Report
 
