@@ -26,6 +26,13 @@ test file BEFORE editing the production file. For example, if you need to edit
 skeleton), then edit the production file. This applies to every new production file you
 create or modify for the first time in this sprint.
 
+## Test Framework
+
+**This project uses Vitest** with structural/mock patterns. Do NOT use `@testing-library/react`,
+`@testing-library/jest-dom`, or any `@testing-library/*` imports — they are NOT installed.
+Use `vitest` imports (`describe`, `it`, `expect`, `vi`) and mock patterns. If the sprint spec
+does not specify a test framework, default to Vitest. Never install testing-library packages.
+
 ## What You Receive
 
 The orchestrator provides:

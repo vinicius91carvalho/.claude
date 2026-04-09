@@ -36,6 +36,12 @@ files_read_only:   files to reference but NOT modify (safe to overlap across spr
 shared_contracts:  interfaces/types from the PRD's Shared Contracts section that this sprint consumes
 ```
 
+**Import path verification (MANDATORY):** Before writing import paths in sprint specs,
+read the target package's `package.json` `exports` field to verify the actual export path.
+Directory structure does NOT always match export paths (e.g., `domain/constants/integrations`
+may export as just `constants`). Never assume — verify. For monorepo shared packages, run:
+`cat packages/<pkg>/package.json | grep -A 20 '"exports"'`
+
 **Conflict rule:** If two sprints in the SAME batch both list the same file under
 `files_to_modify` or `files_to_create`, they CANNOT run in parallel — move one sprint
 to a later batch (or make it a sequential dependency). `files_read_only` may overlap

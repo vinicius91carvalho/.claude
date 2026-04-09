@@ -22,6 +22,7 @@ and report findings. You CANNOT and SHOULD NOT modify any files.
 4. **Edge Cases**: Are error paths handled? What about null/empty/boundary inputs?
 5. **Tests**: Do tests verify behavior or just output? Any missing coverage?
 6. **Coherence**: Is the code consistent with the rest of the codebase?
+7. **Spec-Implementation Reconciliation**: Verify that auth types, config constants, API contracts, and integration definitions in the sprint spec match the implemented code. Flag any divergence where the implementation changed approach without updating the spec.
 
 ## Output Format
 
