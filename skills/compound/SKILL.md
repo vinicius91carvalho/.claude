@@ -10,6 +10,16 @@ context: fork
 
 # Compound: Learning Capture & Knowledge Promotion
 
+0. **No-op guard** — before starting, check if compound already ran recently:
+   ```bash
+   LAST_COMPOUND=$(find "${HOME}/.claude/state/" -name ".claude-compound-done-*" -mmin -30 2>/dev/null | head -1)
+   LAST_COMMIT=$(git log -1 --format=%ct 2>/dev/null || echo 0)
+   MARKER_TIME=$(stat -c %Y "$LAST_COMPOUND" 2>/dev/null || echo 999999999)
+   ```
+   If `LAST_COMPOUND` exists AND `LAST_COMMIT < MARKER_TIME` (no new commits since last compound):
+   → Report "Compound skipped — no new work since last run (marker: [timestamp])." and STOP.
+   Otherwise proceed normally.
+
 1. **Review what was done** — read PRD, recent changes, or conversation context
 2. **Identify learnings:**
    - What worked well?
