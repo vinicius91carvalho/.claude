@@ -206,37 +206,52 @@ Execute task batches in order. The execution strategy depends on whether a task 
 - **PRD+Sprint task** — Has a `progress.json` with sprint entries → delegate to **orchestrator agent** (one per batch)
 - **Simple task** — Standard checklist without sprint structure → execute with **general-purpose agent**
 
-### Step 3.1: For PRD+Sprint Tasks — One Orchestrator Per Batch
+### Step 3.1: For PRD+Sprint Tasks — One Batch Per Session (HARD RULE)
 
-**CRITICAL: Spawn one orchestrator agent per batch. Each gets fresh context.**
+**CRITICAL: This skill executes EXACTLY ONE batch per session, then stops.**
+The main agent does NOT loop through batches. Multi-batch loops in the main
+agent accumulate context (orchestrator return reports + progress.json re-reads
++ session-learnings updates) and trigger repeated `/compact`, turning a short
+PRD into hours of degraded execution. The user starts a fresh
+`/plan-build-test` session per batch — Phase 0 picks up the next pending batch
+from `progress.json`.
 
-Read `progress.json` to determine batch order. Loop:
+Execute exactly ONE batch:
 
-```
-for each batch (ordered by batch number):
-  1. Read progress.json for current state
-  2. Read session learnings for accumulated rules
-  3. Read previous batch's Agent Notes from sprint spec files
-  4. Spawn orchestrator agent for THIS batch only:
+1. Read `progress.json` — find the lowest-numbered batch whose sprints are
+   `not_started` or `in_progress`. This is THE batch for this session.
+2. Read session learnings for accumulated rules.
+3. Read previous batch's Agent Notes from prior sprint spec files (if any).
+4. Spawn orchestrator agent for THIS batch only:
 
-     Agent(description: "Batch N: Sprint(s) [X,Y]",
-           prompt: "Execute batch N.
+   Agent(description: "Batch N: Sprint(s) [X,Y]",
+         prompt: "Execute batch N.
 
-           PRD directory: [path]
-           progress.json path: [path]
-           Batch assignment: Sprints [list]
-           Previous Agent Notes: [from prior sprint spec files]
-           Execution Config: [commands from project CLAUDE.md]
-           Session learnings rules: [relevant rules]
-           Context files: [key reference files]",
-           subagent_type: "orchestrator",
-           model: "opus")
+         PRD directory: [path]
+         progress.json path: [path]
+         Batch assignment: Sprints [list]
+         Previous Agent Notes: [from prior sprint spec files]
+         Execution Config: [commands from project CLAUDE.md]
+         Session learnings rules: [relevant rules]
+         Context files: [key reference files]",
+         subagent_type: "orchestrator",
+         model: "opus")
 
-  5. Receive results from orchestrator
-  6. Re-read progress.json (orchestrator updated it)
-  7. Update session learnings (status, errors, new rules)
-  8. If batch had blocked sprints: decide whether to continue or stop
-```
+5. Receive results from orchestrator.
+6. Re-read progress.json (orchestrator updated it).
+7. Update session learnings (status, errors, new rules from this batch only).
+8. Route based on progress.json state:
+   - **More `not_started`/`in_progress` batches remain:**
+     Report batch N results. Tell user: "Batch N done. **Start a new session
+     and run `/plan-build-test` again** to pick up batch N+1 from
+     progress.json." **STOP. Do NOT proceed to Phase 4/5/6.** The next
+     session's Phase 0 resume gate will pick up where this one left off.
+   - **ALL batches complete:**
+     Proceed to Phase 4 (Post-Implementation Review), then Phase 5 (Live
+     Verification), then Phase 6 (Learning). These phases only run on the
+     session that finishes the final batch.
+   - **Batch had blocked sprints:** Report blocked state and STOP — user
+     decides retry / re-plan / abandon.
 
 ### Step 3.2: For Simple Tasks — General-Purpose Agent
 

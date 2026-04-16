@@ -76,15 +76,30 @@ If this IS a fresh context (first message or resumed from session learnings), sk
 
 ### Step 0.2: Determine Which App(s) to Ship
 
-Detect which app(s) have changes:
+**Sprint state is optional.** This skill does not require a `progress.json` or
+completed sprint record — it ships whatever diverges from the remote. If PRD
+state happens to exist, it's informational only; the authoritative signal is
+"what is not yet on the tracking remote".
+
+Detect all unpushed changes:
 
 ```bash
-git diff --name-only HEAD~1 HEAD
-git diff --name-only  # unstaged changes
-git diff --name-only --cached  # staged changes
+# All commits on the current branch not yet on the tracking remote branch
+git log @{upstream}..HEAD --oneline 2>/dev/null || git log origin/main..HEAD --oneline
+# Files changed across those commits
+git diff @{upstream}..HEAD --name-only 2>/dev/null || git diff origin/main..HEAD --name-only
+# Plus working tree
+git diff --name-only              # unstaged
+git diff --name-only --cached     # staged
 ```
 
-Categorize changed files using `app_detection_paths` from Execution Config. Determine: which app(s) are affected, or if only shared packages changed (which affects all apps).
+Union the three file lists. Categorize using `app_detection_paths` from
+Execution Config. Determine which app(s) are affected (or if only shared
+packages changed — affects all apps).
+
+**If there are zero unpushed commits AND zero staged/unstaged changes:** report
+"nothing to ship — working tree matches remote" and stop. Do not fabricate a
+no-op commit.
 
 ### Step 0.3: Local Verification Gate
 

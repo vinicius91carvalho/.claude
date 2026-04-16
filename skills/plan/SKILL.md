@@ -49,6 +49,6 @@ description: >
    contracts for cross-cutting concepts) → run `bash ~/.claude/hooks/scripts/validate-sprint-boundaries.sh <prd-dir>`
    → tag Build Candidate (`git tag "build-candidate/<prd-name>"`). Maximum 5 sprints per PRD.
 
-5. Tell the user: "PRD saved at [directory-path]/. Sprint specs extracted to `sprints/`. INVARIANTS.md created. Build Candidate tagged. Run `/plan-build-test` to execute, or review and adjust first."
+5. Tell the user: "PRD saved at [directory-path]/. Sprint specs extracted to `sprints/`. INVARIANTS.md created. Build Candidate tagged. **Stop this session.** Open a fresh session and run `/plan-build-test` to execute — do NOT continue in this window. Keeping planning and execution in separate context windows prevents `/compact` churn during the build."
 
-6. **Do NOT execute.** This skill produces the plan only.
+6. **Do NOT execute. Do NOT invoke `/plan-build-test` from this session**, even if the user's next message asks for it — tell them to start a new session instead (context hygiene). This skill produces the plan only.
