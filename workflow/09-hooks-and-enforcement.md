@@ -289,11 +289,46 @@ Was /compound run?
 | `permissions.allow` | Explicit allow list of tools for autonomous execution — compensated by hook safety |
 | `effortLevel: "high"` | Claude invests more tokens/reasoning in responses |
 | `statusLine` | Custom status line command for the Claude Code UI |
-| `enabledPlugins` | Plugin system with marketplace plugins (frontend-design, context7, playwright, etc.) |
+| `enabledPlugins` | Marketplace-installed plugins enabled for this user. The shipped config enables `frontend-design`, `code-simplifier`, `playwright`, `commit-commands`, `security-guidance`, `claude-md-management`, `skill-creator`, `claude-code-setup`, `typescript-lsp` (all from `claude-plugins-official`) and `claude-hud@claude-hud` (statusline). Install flow: see [Getting Started › Installing Plugins](02-getting-started.md#installing-plugins) |
+| `extraKnownMarketplaces` | Extra Git-backed plugin marketplaces beyond the Anthropic-default `claude-plugins-official`. Each entry maps a marketplace name → `{ source: { source: "github", repo: "<org>/<repo>" } }` |
 
 ## Adding Custom Hooks
 
-To add a new hook, add an entry to the relevant section in `settings.json`:
+Hooks are plain executable scripts wired to tool-call lifecycle events in `settings.json`. The full add-a-hook loop is four steps.
+
+### Step 1: Write the script
+
+Create `~/.claude/hooks/your-new-hook.sh`. Hooks read JSON input from stdin (the tool-call payload) and write block messages to stderr.
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+INPUT=$(cat)
+
+# Pull the bash command out of the JSON payload (PreToolUse(Bash) shape)
+if [[ "$INPUT" =~ \"command\":\"(([^\"\\]|\\.)*)\" ]]; then
+  COMMAND="${BASH_REMATCH[1]}"
+else
+  exit 0
+fi
+
+if echo "$COMMAND" | grep -qE 'forbidden-pattern'; then
+  echo "Blocked: forbidden-pattern is not allowed in this repo." >&2
+  exit 2  # 2 = block with message
+fi
+
+exit 0  # allow
+```
+
+Mark it executable:
+
+```bash
+chmod +x ~/.claude/hooks/your-new-hook.sh
+```
+
+### Step 2: Register it in `settings.json`
+
+Add an entry under the relevant lifecycle event. Available events: `PreToolUse`, `PostToolUse`, `Stop`, `UserPromptSubmit`, `Notification`, `PreCompact`, `PostCompact`, `SessionStart`. The `matcher` is a regex over tool names (`Bash`, `Write|Edit|MultiEdit`, `Agent`, `ExitPlanMode`, etc.) — omit it (or set `""`) to match everything.
 
 ```json
 {
@@ -302,10 +337,7 @@ To add a new hook, add an entry to the relevant section in `settings.json`:
       {
         "matcher": "Bash",
         "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/your-new-hook.sh \"$TOOL_INPUT\""
-          }
+          { "type": "command", "command": "~/.claude/hooks/your-new-hook.sh" }
         ]
       }
     ]
@@ -313,7 +345,34 @@ To add a new hook, add an entry to the relevant section in `settings.json`:
 }
 ```
 
-Exit codes: `0` = allow, `1` = error, `2` = block with message (stderr).
+Multiple hooks under the same matcher run in array order. Use `~/` (Claude Code expands it); avoid hardcoding absolute home paths so other users can clone the repo.
+
+### Step 3: Convention — exit codes & contract
+
+| Exit | Meaning | Where the message goes |
+|---|---|---|
+| `0` | Allow | (silent) |
+| `1` | Error / hook crashed | stderr, treated as block |
+| `2` | Block with message | stderr (shown to model + user) |
+
+Soft blocks that prompt for re-approval use the `SOFT_BLOCK_APPROVAL_NEEDED:` stderr prefix (see `block-heavy-bash.sh` for the canonical example) — Claude then asks the user via `AskUserQuestion` and replays after `~/.claude/hooks/approve.sh`.
+
+### Step 4: Test it
+
+Add a behavioral test under `~/.claude/hooks/tests/test-your-new-hook.sh` that pipes a fake JSON payload into the hook and asserts the exit code:
+
+```bash
+echo '{"command":"forbidden-pattern foo"}' | ~/.claude/hooks/your-new-hook.sh
+[ $? -eq 2 ] || { echo "FAIL: should have blocked"; exit 1; }
+```
+
+Then run the full suite:
+
+```bash
+bash ~/.claude/hooks/tests/run-all.sh
+```
+
+`run-all.sh` auto-discovers any `test-*.sh` in that directory, so a new test file is picked up with no further wiring.
 
 ## PreToolUse: check-test-exists.sh
 

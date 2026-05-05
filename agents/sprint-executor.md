@@ -6,7 +6,7 @@ description: >
   direct user invocation.
 model: sonnet
 tools: Read, Write, Edit, Bash, Glob, Grep, LSP
-isolation: worktree
+isolation: none
 permissionMode: default
 maxTurns: 200
 ---
@@ -42,20 +42,30 @@ The orchestrator provides:
 - **Previous sprint's Agent Notes** — decisions and context from prior sprints (if applicable)
 - **Execution Config commands** — build, test, lint, type-check, kill, dev commands
 - **Sprint spec file path** — so you can update checkboxes and Agent Notes
+- **`branch_name`** — the namespaced branch the orchestrator created for you (e.g. `sprint/<prd-slug>/01-bootstrap`). You verify your worktree is on this branch.
+- **`cwd`** — the absolute path to your worktree (already your working directory; pass-through for sanity check).
+- **`integration_base`** — the per-PRD integration branch (e.g. `prd/<prd-slug>`). All your verification "what changed in this sprint" comparisons use this base, NOT `main`.
 
 ## Protocol
 
 ### Step 0: Worktree Bootstrap
 
-**You are running in an isolated git worktree. Before doing any work, ensure
-dependencies are available.** The orchestrator's preflight validated the main repo,
-but your worktree may need its own setup.
+**You are running in an isolated git worktree that the orchestrator created and pre-checked-out for you.** Your `cwd` is the worktree path; your branch is `branch_name`. The orchestrator's preflight validated the main repo; verify your local state and dependencies before starting work.
 
-1. **Verify worktree state:**
+1. **Verify worktree state — branch and cwd MUST match what the orchestrator passed:**
    ```bash
-   git rev-parse --show-toplevel  # confirm you're in a worktree
-   pwd                            # log your working directory
+   git rev-parse --show-toplevel        # confirm you're in a worktree (path includes /.worktrees/<prd-slug>/)
+   pwd                                  # must equal the cwd from your prompt
+   actual="$(git rev-parse --abbrev-ref HEAD)"
+   expected="<branch_name from prompt>"
+   if [ "$actual" != "$expected" ]; then
+     # Orchestrator may have created the branch but not checked it out atomically.
+     # Force-check to the expected branch — never silently work on a different branch.
+     git checkout -B "$expected"
+   fi
    ```
+
+   If `pwd` does NOT match the `cwd` from your prompt, or `git rev-parse --show-toplevel` does NOT contain `/.worktrees/<prd-slug>/`, STOP and report `BLOCKED: not in expected worktree` — do NOT proceed; you may be in the main repo and could pollute peer sessions' branches.
 
 2. **Dependency setup (Node projects only — skip if no package.json):**
    - Check if `node_modules/` exists and has valid symlinks:

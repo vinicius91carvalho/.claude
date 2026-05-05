@@ -1,46 +1,65 @@
 {
   "prd": "spec.md",
   "created": "2026-05-05T14:19:18Z",
-
   "schema_version": 2,
-  "owner_session_id": null,
+  "owner_session_id": "40ac7ed4-171d-4bfa-b2ba-08ee1d64ce2b",
   "owner_created_at": "2026-05-05T14:19:18Z",
-  "adopted_by": [],
+  "adopted_by": [
+    {
+      "session_id": "40ac7ed4-171d-4bfa-b2ba-08ee1d64ce2b",
+      "adopted_at": "2026-05-05T18:59:36Z",
+      "reason": "first-executor-bind"
+    }
+  ],
   "prd_slug": "2026-05-05_1419-skill-evolution",
-
   "sprints": [
     {
       "id": 1,
       "file": "sprints/01-transcript-miner.md",
       "title": "Transcript miner — friction event extraction + redaction",
-      "status": "not_started",
+      "status": "complete",
       "depends_on": [],
       "batch": 1,
       "model": "sonnet",
       "branch": null,
-      "merged": false
+      "merged": false,
+      "claimed_by_session": "40ac7ed4-171d-4bfa-b2ba-08ee1d64ce2b",
+      "claimed_at": "2026-05-05T19:02:32Z",
+      "claim_heartbeat_at": "2026-05-05T19:02:32Z",
+      "completed_at": "2026-05-05T19:07:51Z"
     },
     {
       "id": 2,
       "file": "sprints/02-proposer.md",
       "title": "Proposer — clustering + review-dir + regression-test gen",
-      "status": "not_started",
+      "status": "complete",
       "depends_on": [],
       "batch": 1,
       "model": "sonnet",
       "branch": null,
-      "merged": false
+      "merged": false,
+      "claimed_by_session": "40ac7ed4-171d-4bfa-b2ba-08ee1d64ce2b",
+      "claimed_at": "2026-05-05T19:07:52Z",
+      "claim_heartbeat_at": "2026-05-05T19:07:52Z",
+      "completed_at": "2026-05-05T19:13:05Z"
     },
     {
       "id": 3,
       "file": "sprints/03-skill-evolve-orchestrator.md",
       "title": "/skill-evolve SKILL.md — orchestration + safety guards",
-      "status": "not_started",
-      "depends_on": [1, 2],
+      "status": "complete",
+      "depends_on": [
+        1,
+        2
+      ],
       "batch": 2,
       "model": "sonnet",
       "branch": null,
-      "merged": false
+      "merged": false,
+      "claimed_by_session": "40ac7ed4-171d-4bfa-b2ba-08ee1d64ce2b",
+      "claimed_at": "2026-05-05T19:13:05Z",
+      "claim_heartbeat_at": "2026-05-05T19:13:05Z",
+      "completed_at": "2026-05-05T19:16:38Z"
     }
   ]
 }

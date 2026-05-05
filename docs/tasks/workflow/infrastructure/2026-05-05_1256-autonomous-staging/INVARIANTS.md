@@ -10,7 +10,7 @@ Cross-cutting contracts shared between `/autonomous-staging` (consumer), `/ship-
 - **Preconditions:** Consumer skills (`/ship-test-ensure`, `/plan-build-test`) must parse `$CLAUDE_PIPELINE_MODE` as a comma-separated string and check for substring matches (e.g. `case "$CLAUDE_PIPELINE_MODE" in *staging-only*) ...`).
 - **Postconditions:** Owner sets the env var to ONLY documented values (`staging-only`, `aggressive-fix-loop`, or comma-combination of both). Empty/unset is the canonical default.
 - **Invariants:** Only two values exist in the vocabulary today: `staging-only`, `aggressive-fix-loop`. Adding a third requires updating this invariant + all three SKILL.md files.
-- **Verify:** `grep -rhoE 'CLAUDE_PIPELINE_MODE=[^ "'\'']+' ~/.claude/skills/ 2>/dev/null | awk -F'=' '{print $2}' | tr ',' '\n' | sort -u | grep -v '^$' | grep -vE '^(staging-only|aggressive-fix-loop)$' | wc -l | grep -q '^0$'`
+- **Verify:** `grep -rhoE 'CLAUDE_PIPELINE_MODE=[a-z,-]+' ~/.claude/skills/ 2>/dev/null | awk -F'=' '{print $2}' | tr ',' '\n' | sort -u | grep -v '^$' | grep -vE '^(staging-only|aggressive-fix-loop)$' | wc -l | grep -q '^0$'`
 - **Fix:** If verify returns nonzero, an undocumented mode value was introduced. Either document it here and in the consumer skills, or rename it to one of the two existing values.
 
 ---
@@ -53,6 +53,6 @@ Cross-cutting contracts shared between `/autonomous-staging` (consumer), `/ship-
 - **Owner:** `~/.claude/skills/plan-build-test/SKILL.md` Phase 5.7 (Sprint 2)
 - **Preconditions:** Phase 5.7 must define BOTH the default budget table (canonical: `transient: 5, logic: 2, environment: 1, config: 3`) AND the aggressive-mode delta (only `logic: 4`).
 - **Postconditions:** When `$CLAUDE_PIPELINE_MODE` contains `aggressive-fix-loop`, the executor uses `logic: 4` for that category. Other categories are unaffected.
-- **Invariants:** No other file in the system defines per-category retry budgets. `~/.claude/rules/quality.md` may reference the canonical default for context but does NOT define an aggressive override.
-- **Verify:** `grep -rE 'logic.*4|aggressive.*logic' ~/.claude/skills/ ~/.claude/rules/ 2>/dev/null | grep -v 'plan-build-test/SKILL.md' | grep -v 'docs/tasks' | wc -l | grep -q '^0$'`
+- **Invariants:** No other file in the system *defines* per-category retry budgets. `~/.claude/rules/quality.md` may reference the canonical default for context but does NOT define an aggressive override. `/autonomous-staging` may *reference* the budget delta (cross-skill handshake docs) but MUST NOT redeclare it as a normative table or numeric assignment.
+- **Verify:** `grep -rEn '^\| *(transient|logic|environment|config) *\| *[0-9]+ *\|' ~/.claude/skills/ ~/.claude/rules/ 2>/dev/null | grep -v 'plan-build-test/SKILL.md' | grep -v 'docs/tasks' | wc -l | grep -q '^0$'`
 - **Fix:** If another file shadows the budget table, delete that copy and reference Phase 5.7 instead.

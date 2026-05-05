@@ -36,6 +36,40 @@ through staging, confirms before prod). See CLAUDE.md "Autonomous Pipeline" for 
 
 ---
 
+## Mode Flags
+
+This skill recognizes the `CLAUDE_PIPELINE_MODE` environment variable to alter
+pipeline behavior without changing skill source. The value is a **closed
+vocabulary** — only the documented values below are recognized. Unknown values
+are silently ignored (forward-compatible).
+
+### Recognized values (comma-separated combinations allowed)
+
+| Value | Effect |
+|---|---|
+| `staging-only` | Run through staging deploy + E2E (Phase 0–3), then exit 99 before Phase 4 (production deploy). The exit is intentional — 99 is the "staging-only stop" code, not an error. |
+| `aggressive-fix-loop` | Raise the max fix-retry budget across all phases (reserved; no effect in the current version). |
+
+Combinations are valid: `CLAUDE_PIPELINE_MODE=staging-only,aggressive-fix-loop`.
+
+**Detection pattern:** Consumers test via substring match so combinations work:
+```bash
+if [[ "$CLAUDE_PIPELINE_MODE" == *staging-only* ]]; then ...
+```
+
+**Exit code contract:**
+- `exit 0` — pipeline completed the phases allowed by the mode (e.g., staging-only → Phase 3 success)
+- `exit 99` — intentional staging-only stop before production deploy (not an error)
+- Any other non-zero — actual failure
+
+**Autonomous mode note:** When `CLAUDE_PIPELINE_MODE` contains `staging-only`,
+the Phase 4.1 production-deploy confirmation prompt is **never reached** — the
+guard fires before the prompt, so the skill never asks. The two mechanisms are
+complementary: the manual prompt protects direct invocations; the guard protects
+wrapper-invoked runs. See `## Mode Flags` (this section) for the guard details.
+
+---
+
 ## Execution Config Dependency
 
 This skill reads project-specific configuration from the project's `CLAUDE.md` under an `## Execution Config` section. Required keys: `build_command`, `test_command`, `lint_command`, `typecheck_command`, `kill_command`, `e2e_command`, `package_manager`, `github_repo`, `staging_urls`, `production_urls`, `deploy_commands` (with `staging_trigger` and `production` list), `pages_to_audit`, and `app_detection_paths`. Optional: `staging_credentials`, `e2e_staging`, `e2e_production`, `lighthouse_threshold`, `psi_api_key`.
@@ -317,6 +351,17 @@ All tests must pass. Update the `## Ship Pipeline State` in session learnings: p
 ---
 
 ## Phase 4: Deploy to Production
+
+> **staging-only guard** — if `CLAUDE_PIPELINE_MODE` contains `staging-only`, this phase
+> exits immediately (exit 99) before any deploy command or confirmation prompt is reached.
+> The caller interprets exit 99 as "ran cleanly through staging, intentionally stopped before prod."
+
+```bash
+if [[ "$CLAUDE_PIPELINE_MODE" == *staging-only* ]]; then
+  echo "PROD-FORBIDDEN: staging-only mode active — refusing to enter Phase 4: Deploy to Production (CLAUDE_PIPELINE_MODE=$CLAUDE_PIPELINE_MODE)"
+  exit 99
+fi
+```
 
 ### Step 4.1: Confirm with User (MANDATORY — never skip, even in autonomous mode)
 

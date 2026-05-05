@@ -58,3 +58,13 @@ hooks/.pending/
 # Exclude session state markers (preflight, compound, completion evidence)
 state/
 skills/git-worktree
+
+# Exclude top-level runtime approvals marker
+approvals/
+
+# Exclude skill-evolve runtime outputs (per-run proposal directories)
+docs/skill-evolution-proposals/
+
+# Python bytecode caches
+__pycache__/
+*.pyc

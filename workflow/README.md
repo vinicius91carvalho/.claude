@@ -16,7 +16,7 @@ Detailed documentation for the Claude Workflow System. See the [main README](../
 
 ### Components
 7. [Agents](07-agents.md) — Orchestrator, Sprint Executor, Code Reviewer
-8. [Skills Reference](08-skills-reference.md) — /plan, /plan-build-test, /research, /ship-test-ensure, /compound, /workflow-audit, /update-docs, /find-skills, /playwright-stealth
+8. [Skills Reference](08-skills-reference.md) — /plan, /plan-build-test, /adopt-plan, /research, /ship-test-ensure, /autonomous-staging, /verify-staging, /compound, /workflow-audit, /skill-evolve, /update-docs, /find-skills, /playwright-stealth
 9. [Hooks & Enforcement](09-hooks-and-enforcement.md) — settings.json, hook lifecycle, adding custom hooks
 10. [Evolution & Learning](10-evolution-and-learning.md) — Cross-project learning, error registry, model performance
 

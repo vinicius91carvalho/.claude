@@ -109,6 +109,73 @@ After installation, verify everything works:
 4. **Test auto-formatting** — edit a TypeScript file. The `post-edit-quality.sh` hook should auto-format it after saving.
 5. **Try `/plan`** — describe a feature. The planning skill should auto-invoke and walk you through Contract-First and Correctness Discovery.
 
+## Installing Plugins
+
+Plugins extend Claude Code with extra skills, commands, agents, MCP servers, and statuslines. They live under `~/.claude/plugins/` and are enabled via `enabledPlugins` in `settings.json`. The system ships pre-wired with the official Anthropic marketplace plus `claude-hud` for the statusline.
+
+### Step 1: Add a marketplace
+
+A marketplace is a Git repo that exposes one or more plugins. Add it once per host. Two ways:
+
+**A. Inside a Claude Code session:** ask Claude to run `/plugin marketplace add <github-org>/<repo>` (built-in CLI command). The marketplace is cloned to `~/.claude/plugins/marketplaces/<name>/`.
+
+**B. Manually in `settings.json`:** add an entry under `extraKnownMarketplaces`:
+
+```json
+"extraKnownMarketplaces": {
+  "claude-hud": {
+    "source": { "source": "github", "repo": "jarrodwatts/claude-hud" }
+  }
+}
+```
+
+The shipped `settings.json` already registers `claude-plugins-official` (Anthropic's official marketplace, auto-known) and `claude-hud`.
+
+### Step 2: Enable plugins
+
+Add each plugin to `enabledPlugins` in `settings.json`, keyed as `<plugin-name>@<marketplace-name>`:
+
+```json
+"enabledPlugins": {
+  "frontend-design@claude-plugins-official": true,
+  "playwright@claude-plugins-official": true,
+  "commit-commands@claude-plugins-official": true,
+  "claude-md-management@claude-plugins-official": true,
+  "skill-creator@claude-plugins-official": true,
+  "claude-code-setup@claude-plugins-official": true,
+  "code-simplifier@claude-plugins-official": true,
+  "security-guidance@claude-plugins-official": true,
+  "typescript-lsp@claude-plugins-official": true,
+  "claude-hud@claude-hud": true
+}
+```
+
+Restart any open `claude` session so the new plugins are loaded. Installed copies are cached at `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/` and tracked in `~/.claude/plugins/installed_plugins.json` (managed by Claude Code — do not hand-edit).
+
+### Step 3: Verify
+
+```bash
+# Inside a session:
+/plugin list
+
+# From the shell:
+ls ~/.claude/plugins/cache/
+cat ~/.claude/plugins/installed_plugins.json | jq '.plugins | keys'
+```
+
+Plugin-provided slash commands then appear under `/<plugin>:<command>` (for example `/commit-commands:commit-push-pr`, `/claude-md-management:revise-claude-md`).
+
+### Updating, removing, switching scope
+
+| Action | How |
+|---|---|
+| Update one plugin | `/plugin update <plugin>@<marketplace>` |
+| Update all from a marketplace | `/plugin marketplace update <marketplace>` |
+| Disable temporarily | Set its `enabledPlugins` value to `false` |
+| Remove entirely | Delete its key from `enabledPlugins`; optionally `rm -rf ~/.claude/plugins/cache/<marketplace>/<plugin>` |
+
+Plugins that ship a statusline (like `claude-hud`) are wired in via `settings.json > statusLine` — see the existing block in the shipped `settings.json` for the resolution shell snippet that picks the latest cached version.
+
 ## What Loads When
 
 Understanding what loads when helps you manage context efficiently:

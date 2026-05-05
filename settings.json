@@ -6,6 +6,10 @@
     "WATCHPACK_POLLING": "true",
     "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "40"
   },
+  "statusLine": {
+    "type": "command",
+    "command": "bash -c 'cols=$(stty size </dev/tty 2>/dev/null | awk \"{print \\$2}\"); export COLUMNS=$(( ${cols:-120} > 4 ? ${cols:-120} - 4 : 1 )); plugin_dir=$(ls -1d \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}\"/plugins/cache/*/claude-hud/*/ 2>/dev/null | sort -V | tail -1); exec \"/root/.bun/bin/bun\" --env-file /dev/null \"${plugin_dir}src/index.ts\"'"
+  },
   "permissions": {
     "allow": [
       "Read",
@@ -30,9 +34,14 @@
       "AskUserQuestion",
       "EnterPlanMode",
       "ExitPlanMode",
-      "mcp__*"
+      "mcp__*",
+      "Bash(rm .git/worktrees/agent-ab0df4e9/locked .git/worktrees/agent-a2f1507ed01f5d2de/locked)",
+      "Bash(rtk git *)",
+      "Bash(rm /root/projects/causeflow/core/.git/worktrees/agent-a276676deb39f3dd2/locked)",
+      "Bash(rm /root/projects/causeflow/core/.git/worktrees/agent-a609dda5a3dd6d6fa/locked)"
     ],
-    "deny": []
+    "deny": [],
+    "defaultMode": "auto"
   },
   "hooks": {
     "PostToolUse": [
@@ -54,6 +63,24 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/progress-signal.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Agent|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/track-active-work.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/relocate-plan.sh"
           }
         ]
       }
@@ -103,6 +130,19 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/block-heavy-bash.sh"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/track-active-work.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/track-active-work.sh"
           }
         ]
       },
@@ -177,23 +217,30 @@
       }
     ]
   },
-  "statusLine": {
-    "type": "command",
-    "command": "~/.claude/statusline-command.sh"
-  },
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,
-    "context7@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,
     "playwright@claude-plugins-official": true,
     "commit-commands@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
     "claude-md-management@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true,
+    "claude-code-setup@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
-    "pyright-lsp@claude-plugins-official": false,
-    "skill-creator@claude-plugins-official": true
+    "claude-hud@claude-hud": true
   },
-  "extraKnownMarketplaces": {},
-  "effortLevel": "medium",
-  "skipDangerousModePermissionPrompt": true
+  "extraKnownMarketplaces": {
+    "claude-hud": {
+      "source": {
+        "source": "github",
+        "repo": "jarrodwatts/claude-hud"
+      }
+    }
+  },
+  "effortLevel": "xhigh",
+  "skipDangerousModePermissionPrompt": true,
+  "theme": "dark",
+  "verbose": false,
+  "agentPushNotifEnabled": false,
+  "skipAutoPermissionPrompt": true
 }

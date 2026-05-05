@@ -1,46 +1,65 @@
 {
   "prd": "spec.md",
   "created": "2026-05-05T12:56:00Z",
-
   "schema_version": 2,
-  "owner_session_id": null,
+  "owner_session_id": "40ac7ed4-171d-4bfa-b2ba-08ee1d64ce2b",
   "owner_created_at": "2026-05-05T12:56:00Z",
-  "adopted_by": [],
+  "adopted_by": [
+    {
+      "session_id": "40ac7ed4-171d-4bfa-b2ba-08ee1d64ce2b",
+      "adopted_at": "2026-05-05T19:37:27Z",
+      "reason": "first-executor-bind"
+    }
+  ],
   "prd_slug": "2026-05-05_1256-autonomous-staging",
-
   "sprints": [
     {
       "id": 1,
       "file": "sprints/01-staging-only-mode.md",
       "title": "Add staging_only mode to /ship-test-ensure",
-      "status": "not_started",
+      "status": "complete",
       "depends_on": [],
       "batch": 1,
       "model": "sonnet",
       "branch": null,
-      "merged": false
+      "merged": false,
+      "claimed_by_session": "40ac7ed4-171d-4bfa-b2ba-08ee1d64ce2b",
+      "claimed_at": "2026-05-05T19:41:11Z",
+      "claim_heartbeat_at": "2026-05-05T19:41:11Z",
+      "completed_at": "2026-05-05T19:42:39Z"
     },
     {
       "id": 2,
       "file": "sprints/02-aggressive-fix-loop.md",
       "title": "Add aggressive_fix_loop mode to /plan-build-test Phase 5.7",
-      "status": "not_started",
+      "status": "complete",
       "depends_on": [],
       "batch": 1,
       "model": "sonnet",
       "branch": null,
-      "merged": false
+      "merged": false,
+      "claimed_by_session": "40ac7ed4-171d-4bfa-b2ba-08ee1d64ce2b",
+      "claimed_at": "2026-05-05T19:42:39Z",
+      "claim_heartbeat_at": "2026-05-05T19:42:39Z",
+      "completed_at": "2026-05-05T19:44:44Z"
     },
     {
       "id": 3,
       "file": "sprints/03-autonomous-staging-skill.md",
       "title": "Create /autonomous-staging skill (chains 1 + 2)",
-      "status": "not_started",
-      "depends_on": [1, 2],
+      "status": "complete",
+      "depends_on": [
+        1,
+        2
+      ],
       "batch": 2,
       "model": "sonnet",
       "branch": null,
-      "merged": false
+      "merged": false,
+      "claimed_by_session": "40ac7ed4-171d-4bfa-b2ba-08ee1d64ce2b",
+      "claimed_at": "2026-05-05T19:44:44Z",
+      "claim_heartbeat_at": "2026-05-05T19:44:44Z",
+      "completed_at": "2026-05-05T19:49:16Z"
     }
   ]
 }

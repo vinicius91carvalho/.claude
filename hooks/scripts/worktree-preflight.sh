@@ -237,21 +237,42 @@ else
   log "git: clean working tree"
 fi
 
-# --- 3. Stale worktree cleanup ---
+# --- 3. Stale worktree cleanup (namespace-scoped) ---
+#
+# Only prune branches that belong to THIS session's PRD slug. Peer sessions
+# may have live `sprint/*` branches under their own slug — never delete them.
 
 STALE_COUNT=0
+OWN_SLUG=""
+if [ -n "${CLAUDE_SESSION_ID:-}" ] && [ -f "$HOME/.claude/state/active-plan-${CLAUDE_SESSION_ID}.json" ]; then
+  OWN_SLUG=$(jq -r '.prd_slug // empty' "$HOME/.claude/state/active-plan-${CLAUDE_SESSION_ID}.json" 2>/dev/null || echo "")
+fi
+
 if git worktree list --porcelain >/dev/null 2>&1; then
   STALE_COUNT=$(git worktree prune --dry-run 2>/dev/null | wc -l || echo 0)
   git worktree prune 2>/dev/null
 
-  git branch --list 'sprint/*' 2>/dev/null | while read -r branch; do
+  if [ -n "$OWN_SLUG" ]; then
+    BRANCH_PATTERN="sprint/$OWN_SLUG/*"
+  else
+    # No pointer yet (pre-/plan execution) — scan only legacy unscoped branches.
+    # Namespaced branches (sprint/<slug>/*) belong to some session and must be left alone.
+    BRANCH_PATTERN="sprint/*"
+  fi
+
+  git branch --list "$BRANCH_PATTERN" 2>/dev/null | while read -r branch; do
     branch=$(echo "$branch" | tr -d ' *')
+    # When we're scanning legacy patterns (no own slug), skip namespaced branches —
+    # they belong to a peer session.
+    if [ -z "$OWN_SLUG" ] && [[ "$branch" == sprint/*/* ]]; then
+      continue
+    fi
     if ! git worktree list --porcelain 2>/dev/null | grep -q "$branch"; then
       git branch -d "$branch" 2>/dev/null && log "git: pruned orphan branch $branch" || true
     fi
   done
 fi
-log "git: pruned ${STALE_COUNT} stale worktrees"
+log "git: pruned ${STALE_COUNT} stale worktrees (slug=${OWN_SLUG:-none})"
 
 # --- 4. proot-distro detection ---
 
