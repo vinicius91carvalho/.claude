@@ -1,0 +1,46 @@
+{
+  "prd": "spec.md",
+  "created": "2026-05-05T14:19:18Z",
+
+  "schema_version": 2,
+  "owner_session_id": null,
+  "owner_created_at": "2026-05-05T14:19:18Z",
+  "adopted_by": [],
+  "prd_slug": "2026-05-05_1419-skill-evolution",
+
+  "sprints": [
+    {
+      "id": 1,
+      "file": "sprints/01-transcript-miner.md",
+      "title": "Transcript miner — friction event extraction + redaction",
+      "status": "not_started",
+      "depends_on": [],
+      "batch": 1,
+      "model": "sonnet",
+      "branch": null,
+      "merged": false
+    },
+    {
+      "id": 2,
+      "file": "sprints/02-proposer.md",
+      "title": "Proposer — clustering + review-dir + regression-test gen",
+      "status": "not_started",
+      "depends_on": [],
+      "batch": 1,
+      "model": "sonnet",
+      "branch": null,
+      "merged": false
+    },
+    {
+      "id": 3,
+      "file": "sprints/03-skill-evolve-orchestrator.md",
+      "title": "/skill-evolve SKILL.md — orchestration + safety guards",
+      "status": "not_started",
+      "depends_on": [1, 2],
+      "batch": 2,
+      "model": "sonnet",
+      "branch": null,
+      "merged": false
+    }
+  ]
+}
